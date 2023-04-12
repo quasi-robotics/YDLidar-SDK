@@ -946,7 +946,6 @@ class YDLIDAR_API CYdLidar {
    */
   bool getUserVersion(std::string &version);
 
- private:
   /**
    * @brief check LiDAR instance and connect to LiDAR,
    *  try to create a comms channel.

@@ -628,9 +628,9 @@ int YDlidarDriver::cacheScanData()
     result_t       ans = RESULT_FAIL;
     memset(local_scan, 0, sizeof(local_scan));
 
-    if (m_SingleChannel) {
+    //if (m_SingleChannel) {
         waitDevicePackage(1000);
-    }
+    //}
 
     // flushSerial();
     // waitScanData(local_buf, count);

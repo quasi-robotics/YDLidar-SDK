@@ -1428,7 +1428,7 @@ result_t GS2LidarDriver::createThread()
         return RESULT_FAIL;
     }
 
-    printf("[GS2Lidar] Create GS2 thread 0x%X\n", _thread.getHandle());
+    printf("[GS2Lidar] Create GS2 thread 0x%zX\n", _thread.getHandle());
     fflush(stdout);
 
     return RESULT_OK;

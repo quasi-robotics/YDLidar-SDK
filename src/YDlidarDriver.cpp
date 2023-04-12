@@ -1956,7 +1956,7 @@ result_t YDlidarDriver::createThread()
     return RESULT_FAIL;
   }
 
-  printf("[YDLIDAR] Create thread 0x%X\n", _thread.getHandle());
+  printf("[YDLIDAR] Create thread 0x%zX\n", _thread.getHandle());
   fflush(stdout);
 
   return RESULT_OK;

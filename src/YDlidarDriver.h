@@ -171,6 +171,9 @@ class YDlidarDriver : public DriverInterface {
    */
   virtual result_t getDeviceInfo(device_info &info,
                                  uint32_t timeout = DEFAULT_TIMEOUT);
+  
+  //获取设备信息
+  virtual bool getDeviceInfoEx(device_info &info);
 
   /**
    * @brief Turn on scanning \n
@@ -597,9 +600,6 @@ class YDlidarDriver : public DriverInterface {
   int PackageSampleBytes;
   /// serial port
   ChannelDevice *_serial;
-  /// tranformer type
-  uint8_t m_TranformerType;
-//  bool isSupportMotorDtrCtrl;
   /// sampling inteval
   uint32_t trans_delay;
   /// sampling rate
@@ -609,11 +609,11 @@ class YDlidarDriver : public DriverInterface {
   int sample_rate;
 
   /// has intensity protocol package
-  node_package package;
+  tri_node_package2 package;
   /// TOF Lidar has intensity protocol package
   tof_node_package tof_package;
   /// non-intensity protocol package
-  node_packages packages;
+  tri_node_package packages;
 
   float IntervalSampleAngle;
   float IntervalSampleAngle_LastPackage;
@@ -631,7 +631,7 @@ class YDlidarDriver : public DriverInterface {
   uint16_t LastSampleAngleCal;
   bool CheckSumResult;
   uint16_t Valu8Tou16;
-  uint8_t package_CT;
+  uint8_t ct;
   uint8_t nowPackageNum;
   uint8_t package_Sample_Num;
 
@@ -648,8 +648,7 @@ class YDlidarDriver : public DriverInterface {
   uint8_t  *headerBuffer;
   uint8_t  *infoBuffer;
   uint8_t  *healthBuffer;
-  bool     get_device_info_success;
-  bool     get_device_health_success;
+  bool get_device_health_success;
 
   int package_index;
   bool has_package_error;

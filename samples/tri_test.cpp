@@ -37,6 +37,7 @@
 #include <algorithm>
 #include <cctype>
 #include <core/base/timer.h>
+#include <core/common/ydlidar_help.h>
 
 using namespace std;
 using namespace ydlidar;
@@ -220,7 +221,7 @@ int main(int argc, char *argv[])
   /// lidar baudrate
   laser.setlidaropt(LidarPropSerialBaudrate, &baudrate, sizeof(int));
   /// tof lidar
-  int optval = TYPE_TRIANGLE;
+  int optval = TYPE_SCL;
   laser.setlidaropt(LidarPropLidarType, &optval, sizeof(int));
   /// device type
   optval = YDLIDAR_TYPE_SERIAL;
@@ -275,6 +276,9 @@ int main(int argc, char *argv[])
   laser.enableGlassNoise(false);
   laser.enableSunNoise(false);
 
+  //设置是否底板优先
+  laser.setBottomPriority(true);
+
   bool ret = laser.initialize();
   if (!ret)
   {
@@ -292,23 +296,37 @@ int main(int argc, char *argv[])
   }
 
   //获取用户版本
-  if (ret && ydlidar::os_isOk())
-  {
-    std::string userVersion;
-    if (laser.getUserVersion(userVersion))
-    {
-      printf("User version %s\n", userVersion.c_str());
-    }
-  }
+  // if (ret && ydlidar::os_isOk())
+  // {
+  //   std::string userVersion;
+  //   if (laser.getUserVersion(userVersion))
+  //   {
+  //     printf("User version %s\n", userVersion.c_str());
+  //   }
+  // }
+
+  //获取设备信息
+  // if (ret)
+  // {
+  //   device_info di;
+  //   memset(&di, 0, DEVICEINFOSIZE);
+  //   if (!laser.getDeviceInfo(di)) {
+  //     ydlidar::core::common::printfVersionInfo(di, "", 0);
+  //   }
+  //   else {
+  //     printf("Fail to get device info\n");
+  //   }
+  // }
 
   LaserScan scan;
   while (ydlidar::os_isOk())
   {
     if (laser.doProcessSimple(scan))
     {
-      printf("Scan received [%u] points inc [%f]\n",
+      printf("Scan received [%u] "
+             "points scanFreq [%.02f]\n",
              (unsigned int)scan.points.size(),
-             scan.config.angle_increment);
+             scan.scanFreq);
       // for (size_t i = 0; i < scan.points.size(); ++i)
       // {
       //   const LaserPoint &p = scan.points.at(i);

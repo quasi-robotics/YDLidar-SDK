@@ -92,7 +92,7 @@ class DriverInterface {
   //是否底板优先
   PropertyBuilderByName(bool, Bottom, protected);
   //是否已获取到设备信息
-  PropertyBuilderByName(bool, HasDeviceInfo, protected);
+  PropertyBuilderByName(int, HasDeviceInfo, protected);
 
   /**
    * @par Constructor
@@ -127,7 +127,7 @@ class DriverInterface {
     m_Debug = false;
     m_ScanFreq = 0;
     m_Bottom = true;
-    m_HasDeviceInfo = false;
+    m_HasDeviceInfo = EPT_None;
   }
 
   virtual ~DriverInterface() {}
@@ -275,18 +275,33 @@ class DriverInterface {
 
   /**
    * @brief get Device information \n
-   * @param[in] info     Device information
-   * @param[in] timeout  timeout
+   * @param[in] di Device information
+   * @param[in] timeout timeout
    * @return result status
    * @retval RESULT_OK       success
    * @retval RESULT_FAILE or RESULT_TIMEOUT   failed
    */
-  virtual result_t getDeviceInfo(device_info &info,
-                                 uint32_t timeout = DEFAULT_TIMEOUT) = 0;
+  virtual result_t getDeviceInfo(
+    device_info &di,
+    uint32_t timeout = DEFAULT_TIMEOUT) = 0;
+
+  //获取级联雷达设备信息
+  virtual result_t getDeviceInfo(
+    std::vector<device_info_ex>& dis,
+    uint32_t timeout = DEFAULT_TIMEOUT / 2) {
+    device_info di;
+    result_t ret = getDeviceInfo(di, timeout);
+    if (IS_OK(ret)) {
+      device_info_ex die;
+      memcpy(&die.di, &di, DEVICEINFOSIZE);
+      dis.push_back(die);
+    }
+    return ret;
+  }
   
   //获取设备信息
-  virtual bool getDeviceInfoEx(device_info &info) {
-    UNUSED(info); 
+  virtual bool getDeviceInfoEx(device_info &di) {
+    UNUSED(di); 
     return false;
   }
 

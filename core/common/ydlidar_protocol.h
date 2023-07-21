@@ -141,7 +141,7 @@
 #define Angle_Py   5.315
 #define Angle_PAngle   22.5
 #define PackageMaxModuleNums  0x03
-#define MaxPointsPerPackge_GS2 160  //GS2固定160个点
+#define GS_MAXPOINTS 160  //GS2固定160个点
 #define MaxPointsPerPackge_GS1 216  //GS1固定216个点
 #define PackagePaidBytes_GS 8
 #define NORMAL_PACKAGE_SIZE 331
@@ -182,11 +182,20 @@ typedef enum {
 #define USERVERSIONNDEX 1
 #define HEALTHINDEX 3
 
-/// ET LiDAR Protocol Type
+//雷达协议类型
 typedef enum {
-  Protocol_V1 = 0,///< V1 version
-  Protocol_V2 = 1,///< V2 version
+  Protocol_V1 = 0, //V1 version
+  Protocol_V2 = 1, //V2 version
 } ProtocolVer;
+
+//设备所属平台类型
+enum EaiPlatformType
+{
+  EPT_None = 0x00, //无
+  EPT_Module = 0x01, //模组
+  EPT_Baseplate = 0x02, //底板
+  EPT_All = (EPT_Module | EPT_Baseplate), //所有
+};
 
 #if defined(_WIN32)
 #pragma pack(1)
@@ -268,14 +277,20 @@ struct stamp_package {
 } __attribute__((packed));
 #define SIZE_STAMPPACKAGE sizeof(stamp_package)
 
-/// LiDAR Device Information
+//设备信息结构体
 struct device_info {
-  uint8_t   model; ///< LiDAR model
-  uint16_t  firmware_version; ///< firmware version
-  uint8_t   hardware_version; ///< hardare version
-  uint8_t   serialnum[SDK_SNLEN]; ///< serial number
+  uint8_t   model; //雷达型号码
+  uint16_t  firmware_version; //固件版本
+  uint8_t   hardware_version; //硬件版本
+  uint8_t   serialnum[SDK_SNLEN]; //序列号
 } __attribute__((packed));
 #define DEVICEINFOSIZE sizeof(device_info)
+
+//设备信息结构体（带模组序号）
+struct device_info_ex {
+  uint8_t id = 0;
+  device_info di = {0};
+};
 
 /// LiDAR Health Information
 struct device_health {
@@ -336,31 +351,34 @@ struct lidar_ans_header {
   uint32_t subType: 2;
   uint8_t  type;
 } __attribute__((packed));
+#define TRIRESPHEADSIZE sizeof(lidar_ans_header) //定义通用响应头大小
 
-//GS2
+//GS单帧数据
 struct gs_packages {
     int frameNum;
     int moduleNum;
     bool left = false;
     bool right = false;
-    node_info points[MaxPointsPerPackge_GS2];
+    node_info points[GS_MAXPOINTS];
 } __attribute__((packed));
-
+//GS点数据结构
 struct gs_node {
   uint16_t dist : 9;
   uint16_t qual : 7;
 } __attribute__((packed));
 #define GSNODESIZE sizeof(gs_node) //定义GS点大小
-
+//GS单包数据结构
 struct gs_node_package {
   uint32_t head;
   uint8_t address;
   uint8_t ct;
   uint16_t size;
   uint16_t env;
-  gs_node nodes[MaxPointsPerPackge_GS2];
+  gs_node nodes[GS_MAXPOINTS];
   uint8_t cs;
 } __attribute__((packed));
+#define GSPACKSIZE sizeof(gs_node_package) //定义GS点大小
+
 //GS设备参数
 struct gs_device_para {
     uint16_t k0;
@@ -386,6 +404,7 @@ struct gs_device_info {
     uint16_t fwVersion; //固件版本号
     uint8_t sn[16]; //序列号
 } __attribute__((packed));
+#define GSDEVINFOSIZE sizeof(gs_device_info)
 //GS系列设备信息（带雷达型号）
 struct gs_device_info2 {
     uint8_t hwVersion; //硬件版本号

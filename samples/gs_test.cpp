@@ -31,12 +31,15 @@
 *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 *  POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
-#include "CYdLidar.h"
+
 #include <iostream>
 #include <string>
 #include <algorithm>
 #include <cctype>
 #include <core/base/timer.h>
+#include "CYdLidar.h"
+#include "core/common/ydlidar_help.h"
+
 
 using namespace std;
 using namespace ydlidar;
@@ -116,8 +119,8 @@ int main(int argc, char *argv[])
 
   int baudrate = 921600;
   std::map<int, int> baudrateList;
-  baudrateList[0] = 921600;
-  baudrateList[1] = 8000; //网络端口
+  baudrateList[0] = 8000; //网络端口
+  baudrateList[1] = 921600; //串口波特率
   printf("Baudrate:\n");
   for (std::map<int, int>::iterator it = baudrateList.begin();
        it != baudrateList.end(); it++) {
@@ -160,8 +163,8 @@ int main(int argc, char *argv[])
   /// gs lidar
   int optval = TYPE_GS;
   laser.setlidaropt(LidarPropLidarType, &optval, sizeof(int));
-  /// device type
-  optval = YDLIDAR_TYPE_TCP; //YDLIDAR_TYPE_TCP YDLIDAR_TYPE_SERIAL
+  /// device type (YDLIDAR_TYPE_TCP,YDLIDAR_TYPE_SERIAL)
+  optval = baudrate == baudrateList[0] ? YDLIDAR_TYPE_TCP : YDLIDAR_TYPE_SERIAL; 
   laser.setlidaropt(LidarPropDeviceType, &optval, sizeof(int));
   /// sample rate
   optval = isSingleChannel ? 3 : 4;
@@ -227,6 +230,22 @@ int main(int argc, char *argv[])
   //   fflush(stderr);
   //   return -1;
   // }
+  //获取级联雷达设备信息
+  std::vector<device_info_ex> dis;
+  ret = laser.getDeviceInfo(dis);
+  if (!ret)
+  {
+    fprintf(stderr, "Fail to get Device infomations %s\n", laser.DescribeError());
+    fflush(stderr);
+    return -1;
+  }
+  for (int i=0; i<dis.size(); ++i)
+  {
+    const device_info_ex& di = dis.at(i);
+    printf("Device [%u]\n", di.id);
+    ydlidar::core::common::printfDeviceInfo(di.di, EPT_Module);
+  }
+
   //启动扫描
   ret = laser.turnOn();
   if (!ret)

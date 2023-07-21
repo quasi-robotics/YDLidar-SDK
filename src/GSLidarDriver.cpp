@@ -73,7 +73,7 @@ GSLidarDriver::GSLidarDriver(uint8_t type)
     packages.resize(MaximumNumberOfPackages);
 
     package_Sample_Index = 0;
-    globalRecvBuffer = new uint8_t[sizeof(gs_node_package)];
+    globalRecvBuffer = new uint8_t[GSPACKSIZE];
     scan_node_buf = new node_info[MAX_SCAN_NODES];
     bias[0] = 0;
     bias[1] = 0;
@@ -763,7 +763,7 @@ PARSEHEAD:
                 if (pos == PackagePaidBytes_GS)
                 {
                     // 如果协议数据长度不对则跳过，继续解析协议头
-                    if (!sample_lens)
+                    if (!sample_lens || sample_lens >= GSPACKSIZE)
                     {
                         moduleNum = 0;
                         pos = 0;
@@ -1337,14 +1337,15 @@ result_t GSLidarDriver::setDeviceAddress(uint32_t timeout)
 /************************************************************************/
 /* the set to signal quality                                            */
 /************************************************************************/
-void GSLidarDriver::setIntensities(const bool &isintensities) {
+void GSLidarDriver::setIntensities(const bool &isintensities) 
+{
     if (m_intensities != isintensities) {
         if (globalRecvBuffer) {
             delete[] globalRecvBuffer;
             globalRecvBuffer = NULL;
         }
 
-        globalRecvBuffer = new uint8_t[sizeof(gs_node_package)];
+        globalRecvBuffer = new uint8_t[GSPACKSIZE];
     }
 
     m_intensities = isintensities;
@@ -1598,6 +1599,86 @@ result_t GSLidarDriver::getDeviceInfo(device_info &info, uint32_t timeout)
     }
 
     return RESULT_OK;
+}
+
+result_t GSLidarDriver::getDeviceInfo(
+    std::vector<device_info_ex> &dis,
+    uint32_t timeout)
+{
+    //1、获取级联雷达数量
+    result_t ret = setDeviceAddress(timeout);
+    if (!IS_OK(ret))
+    {
+        printf("[YDLIDAR] Fail to get GS lidar count");
+        return ret;
+    }
+    //2、获取设备信息（带雷达型号码）
+    uint8_t c = moduleCount;
+    ScopedLocker l(_lock);
+    ret = sendCommand(GS_LIDAR_CMD_GET_VERSION3);
+    if (!IS_OK(ret))
+        return ret;
+    for (uint8_t i=0; i<c; ++i)
+    {
+        gs_package_head head = {0};
+        ret = waitResponseHeaderEx(&head, GS_LIDAR_CMD_GET_VERSION3, timeout);
+        if (!IS_OK(ret))
+            break;
+        if (head.size < GSDEVINFO2SIZE)
+        {
+            ret = RESULT_FAIL;
+            break;
+        }
+        ret = waitForData(head.size + 1, timeout);
+        if (!IS_OK(ret))
+            break;
+
+        gs_device_info2 gsdi2;
+        memset(&gsdi2, 0, GSDEVINFO2SIZE);
+        getData(reinterpret_cast<uint8_t *>(&gsdi2), GSDEVINFO2SIZE);
+
+        device_info_ex di;
+        di.id = head.address >> 1;
+        di.di.model = uint8_t(gsdi2.model);
+        di.di.hardware_version = gsdi2.hwVersion;
+        di.di.firmware_version = uint16_t((gsdi2.fwVersion & 0xFF) << 8) +
+                              uint16_t(gsdi2.fwVersion >> 8);
+        memcpy(di.di.serialnum, gsdi2.sn, SDK_SNLEN);
+        dis.push_back(di);
+    }
+    if (IS_OK(ret))
+        return ret;
+    //3、获取设备信息（不带雷达型号码）
+    ret = sendCommand(GS_LIDAR_CMD_GET_VERSION);
+    for (uint8_t i=0; i<c; ++i)
+    {
+        gs_package_head head = {0};
+        ret = waitResponseHeaderEx(&head, GS_LIDAR_CMD_GET_VERSION, timeout);
+        if (!IS_OK(ret))
+            return ret;
+        if (head.size < GSDEVINFOSIZE) 
+        {
+            ret = RESULT_FAIL;
+            break;
+        }
+        ret = waitForData(head.size + 1, timeout);
+        if (!IS_OK(ret))
+            break;
+
+        gs_device_info gsdi = {0};
+        getData(reinterpret_cast<uint8_t*>(&gsdi), sizeof(gsdi));
+
+        device_info_ex di;
+        di.id = head.address >> 1;
+        di.di.model = YDLIDAR_GS2;
+        di.di.hardware_version = gsdi.hwVersion;
+        di.di.firmware_version = uint16_t((gsdi.fwVersion & 0xFF) << 8) +
+                              uint16_t(gsdi.fwVersion >> 8);
+        memcpy(di.di.serialnum, gsdi.sn, SDK_SNLEN);
+        dis.push_back(di);
+    }
+
+    return ret;
 }
 
 result_t GSLidarDriver::getDeviceInfo2(device_info &info, uint32_t timeout)

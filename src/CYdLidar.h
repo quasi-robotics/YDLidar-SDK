@@ -108,6 +108,9 @@ class YDLIDAR_API CYdLidar {
    * @return true if successfully started, otherwise false.
    */
   bool turnOn();
+
+  //判断是否已启动扫描
+  bool isScanning() const;
   /**
    * @brief Get the LiDAR Scan Data. turnOn is successful before doProcessSimple scan data.
    * @param[out] outscan             LiDAR Scan Data
@@ -171,6 +174,8 @@ class YDLIDAR_API CYdLidar {
   void setBottomPriority(bool yes=true);
   //获取设备信息
   bool getDeviceInfo(device_info& di);
+  //获取级联设备信息
+  bool getDeviceInfo(std::vector<device_info_ex>& dis);
 
 // private:
   /**
@@ -235,7 +240,7 @@ class YDLIDAR_API CYdLidar {
    * @param scan_time   LiDAR scan time
    * @return true if successfully calculated, otherwise false.
    */
-  bool CalculateSampleRate(int count, double scan_time);
+  bool calcSampleRate(int count, double scan_time);
 
   /**
    * @brief Check if the LiDAR Offset Angle is corrected.
@@ -269,7 +274,7 @@ class YDLIDAR_API CYdLidar {
     * @brief Parse Version by Package Information
     * @param debug  LiDAR Point CT Pakcage Information
     */
-  void handleVersionInfoByPackage(const LaserDebug &debug);
+  bool getDeviceInfoByPackage(const LaserDebug &debug);
 
   /**
    * @brief Calculate real-time sampling frequency
@@ -293,7 +298,7 @@ class YDLIDAR_API CYdLidar {
   bool isAngleOffsetCorrected() const;
 
  private:
-  bool    isScanning;               ///< LiDAR is Scanning
+  bool    scanning;               ///< LiDAR is Scanning
   int     m_FixedSize;              ///< Fixed LiDAR Points
   float   m_AngleOffset;            ///< Zero angle offset value
   bool    m_isAngleOffsetCorrected; ///< Has the Angle offset been corrected

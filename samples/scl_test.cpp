@@ -38,6 +38,7 @@
 #include <cctype>
 #include <core/base/timer.h>
 #include <core/common/ydlidar_help.h>
+#include "filters/StrongLightFilter.h"
 
 using namespace std;
 using namespace ydlidar;
@@ -158,9 +159,10 @@ int main(int argc, char *argv[])
   }
 
   if (!ydlidar::os_isOk())
+  {
     return 0;
+  }
 
-  //单通还是双通
   bool isSingleChannel = false;
   std::string input_channel;
   printf("Whether the Lidar is one-way communication [yes/no]:");
@@ -171,30 +173,40 @@ int main(int argc, char *argv[])
                  {
                    return std::tolower(c); // correct
                  });
+
   if (input_channel.find("y") != std::string::npos)
+  {
     isSingleChannel = true;
+  }
 
   if (!ydlidar::os_isOk())
+  {
     return 0;
+  }
 
-  //转速
-  float frequency = 5.0;
   std::string input_frequency;
+
+  float frequency = 5.0;
+
   while (ydlidar::os_isOk() && !isSingleChannel)
   {
     printf("Please enter the lidar scan frequency[5-12]:");
     std::cin >> input_frequency;
     frequency = atof(input_frequency.c_str());
+
     if (frequency <= 12 && frequency >= 5.0)
     {
       break;
     }
+
     fprintf(stderr, "Invalid scan frequency,"
       "The scanning frequency range is 5 to 12 HZ, Please re-enter.\n");
   }
 
   if (!ydlidar::os_isOk())
+  {
     return 0;
+  }
 
   CYdLidar laser;
   //////////////////////string property/////////////////
@@ -210,7 +222,7 @@ int main(int argc, char *argv[])
   /// lidar baudrate
   laser.setlidaropt(LidarPropSerialBaudrate, &baudrate, sizeof(int));
   /// tof lidar
-  int optval = TYPE_TRIANGLE;
+  int optval = TYPE_SCL;
   laser.setlidaropt(LidarPropLidarType, &optval, sizeof(int));
   /// device type
   optval = YDLIDAR_TYPE_SERIAL;
@@ -265,7 +277,7 @@ int main(int argc, char *argv[])
   laser.enableGlassNoise(false);
   laser.enableSunNoise(false);
 
-  //设置是否获取底板设备信息（默认仅尝试获取模组设备信息）
+  //设置是否底板优先
   laser.setBottomPriority(true);
 
   uint32_t t = getms(); //时间
@@ -311,6 +323,9 @@ int main(int argc, char *argv[])
   // }
 
   LaserScan scan;
+  LaserScan outScan;
+  StrongLightFilter filter; //强光滤波器
+
   while (ydlidar::os_isOk())
   {
     if (laser.doProcessSimple(scan))
@@ -321,8 +336,11 @@ int main(int argc, char *argv[])
       // for (size_t i = 0; i < scan.points.size(); ++i)
       // {
       //   const LaserPoint &p = scan.points.at(i);
-      //   printf("%d d %f a %f\n", i, p.range, p.angle * 180.0 / M_PI);
+      //   printf("%d d %.05f a %.02f\n", i, p.range, p.angle * 180.0 / M_PI);
       // }
+      //使用强光滤波器
+      filter.filter(scan, 0, 0, outScan);
+
       fflush(stdout);
     }
     else

@@ -62,7 +62,7 @@ CYdLidar::CYdLidar() : lidarPtr(nullptr)
   //   m_SampleRatebyD1      = 5;
   // defalutSampleRate     = 5;
   m_ScanFrequency = 10;
-  isScanning = false;
+  scanning = false;
   m_FixedSize = 720;
   frequencyOffset = 0.4f;
   m_AbnormalCheckCount = 2;
@@ -453,7 +453,7 @@ void CYdLidar::GetLidarVersion(LidarVersion &version)
 -------------------------------------------------------------*/
 bool CYdLidar::turnOn()
 {
-  if (isScanning && lidarPtr->isscanning())
+  if (scanning && lidarPtr->isscanning())
   {
     return true;
   }
@@ -468,7 +468,7 @@ bool CYdLidar::turnOn()
     {
       lidarPtr->stop();
       fprintf(stderr, "[YDLIDAR] Failed to start scan mode: %x\n", op_result);
-      isScanning = false;
+      scanning = false;
       return false;
     }
   }
@@ -477,26 +477,27 @@ bool CYdLidar::turnOn()
 
   t = getms();
   //计算采样率
-  if (checkLidarAbnormal())
+  if (!checkLidarAbnormal())
   {
     lidarPtr->stop();
     fprintf(stderr,
             "[YDLIDAR] Failed to turn on the Lidar, because the lidar is [%s].\n",
             DriverInterface::DescribeDriverError(lidarPtr->getDriverError()));
-    isScanning = false;
+    scanning = false;
     return false;
   }
   printf("[YDLIDAR] Successed to check the lidar, Elapsed time %u ms\n", getms() - t);
   fflush(stdout);
 
-  if (m_SingleChannel && !isNetTOFLidar(m_LidarType))
-  {
-    handleSingleChannelDevice();
-  }
-  else
-  {
-    printf("[YDLIDAR] Current Sampling Rate : %.02fK\n", m_SampleRate);
-  }
+  //禁用此处获取设备信息方式
+  // if (m_SingleChannel && !isNetTOFLidar(m_LidarType))
+  // {
+  //   handleSingleChannelDevice();
+  // }
+  // else
+  // {
+  //   printf("[YDLIDAR] Current Sampling Rate : %.02fK\n", m_SampleRate);
+  // }
 
   m_field_of_view = 360.f;
 
@@ -524,13 +525,15 @@ bool CYdLidar::turnOn()
   printf("[YDLIDAR] Now lidar is scanning...\n");
   fflush(stdout);
 
-  isScanning = true;
+  scanning = true;
   return true;
 }
 
-/*-------------------------------------------------------------
-            doProcessSimple
--------------------------------------------------------------*/
+bool CYdLidar::isScanning() const
+{
+  return lidarPtr && lidarPtr->isscanning();
+}
+
 bool CYdLidar::doProcessSimple(LaserScan &outscan)
 {
   //判断是否已启动扫描
@@ -619,7 +622,7 @@ bool CYdLidar::doProcessSimple(LaserScan &outscan)
     }
 
     int all_node_count = count;
-    LaserDebug debug;
+    LaserDebug debug = {0};
 
     memset(&debug, 0, sizeof(debug));
     outscan.config.min_angle = math::from_degrees(m_MinAngle);
@@ -771,8 +774,8 @@ bool CYdLidar::doProcessSimple(LaserScan &outscan)
     }
 
     //解析V2协议雷达扫描数据中ct信息中的设备信息
-    handleVersionInfoByPackage(debug);
-    // resample sample rate
+    // getDeviceInfoByPackage(debug);
+    //重新计算采样率
     resample(scanfrequency, count, tim_scan_end, tim_scan_start);
 
     outscan.scanFreq = scanfrequency;
@@ -811,13 +814,13 @@ bool CYdLidar::turnOff()
     lidarPtr->stop();
   }
 
-  if (isScanning)
+  if (scanning)
   {
     printf("[YDLIDAR] Now lidar scanning has stopped!\n");
     fflush(stdout);
   }
 
-  isScanning = false;
+  scanning = false;
   return true;
 }
 
@@ -833,7 +836,7 @@ void CYdLidar::disconnecting()
     lidarPtr = nullptr;
   }
 
-  isScanning = false;
+  scanning = false;
 }
 
 /*-------------------------------------------------------------
@@ -933,6 +936,13 @@ bool CYdLidar::getDeviceInfo(device_info& di)
   return false;
 }
 
+bool CYdLidar::getDeviceInfo(std::vector<device_info_ex>& dis)
+{
+  if (lidarPtr)
+    return IS_OK(lidarPtr->getDeviceInfo(dis));
+  return false;
+}
+
 /*-------------------------------------------------------------
                     isRangeValid
 -------------------------------------------------------------*/
@@ -966,43 +976,41 @@ bool CYdLidar::isRangeIgnore(double angle) const
   return ret;
 }
 
-/*-------------------------------------------------------------
-                    handleVersionInfoByPackage
--------------------------------------------------------------*/
-void CYdLidar::handleVersionInfoByPackage(const LaserDebug &debug)
+bool CYdLidar::getDeviceInfoByPackage(const LaserDebug &debug)
 {
-  if (!lidarPtr || 
-    lidarPtr->getBottom() || //如果是底板优先
-    lidarPtr->getHasDeviceInfo()) //如果已获取设备信息
-  {
-    return;
-  }
+  if (!lidarPtr)
+    return false;
 
-  device_info info;
-  memset(&info, 0, DEVICEINFOSIZE);
+  device_info di;
+  memset(&di, 0, DEVICEINFOSIZE);
 
-  if (ParseLaserDebugInfo(debug, info))
+  if (parseLaserDebugInfo(debug, di))
   {
-    if (printfVersionInfo(info, m_SerialPort, m_SerialBaudrate))
+    if (printfDeviceInfo(di, EPT_Module))
     {
       std::string serial_number;
-      Major = (uint8_t)(info.firmware_version >> 8);
-      Minjor = (uint8_t)(info.firmware_version & 0xff);
-      m_LidarVersion.hardware = info.hardware_version;
+      Major = (uint8_t)(di.firmware_version >> 8);
+      Minjor = (uint8_t)(di.firmware_version & 0xff);
+      m_LidarVersion.hardware = di.hardware_version;
       m_LidarVersion.soft_major = Major;
       m_LidarVersion.soft_minor = Minjor / 10;
       m_LidarVersion.soft_patch = Minjor % 10;
-      memcpy(&m_LidarVersion.sn[0], &info.serialnum[0], 16);
+      memcpy(&m_LidarVersion.sn[0], &di.serialnum[0], 16);
 
       for (int i = 0; i < 16; i++)
       {
-        serial_number += std::to_string(info.serialnum[i] & 0xff);
+        serial_number += std::to_string(di.serialnum[i] & 0xff);
       }
 
       m_SerialNumber = serial_number;
-      lidarPtr->setHasDeviceInfo(true);
+      //设置模组标记
+      lidarPtr->setHasDeviceInfo(lidarPtr->getHasDeviceInfo() | EPT_Module);
+
+      return true;
     }
   }
+
+  return false;
 }
 
 /*-------------------------------------------------------------
@@ -1047,132 +1055,107 @@ void CYdLidar::resample(int frequency, int count, uint64_t tim_scan_end,
   }
 }
 
-/*-------------------------------------------------------------
-            checkLidarAbnormal
--------------------------------------------------------------*/
+//检查异常
 bool CYdLidar::checkLidarAbnormal()
 {
   size_t count = ydlidar::YDlidarDriver::MAX_SCAN_NODES;
-  int check_abnormal_count = 0;
+  int checkCount = 0; //检查次数
 
   if (m_AbnormalCheckCount < 2)
-  {
     m_AbnormalCheckCount = 2;
-  }
 
-  result_t op_result = RESULT_FAIL;
+  result_t ret = RESULT_FAIL;
   std::vector<int> data;
-  int buffer_count = 0;
-
-  while (check_abnormal_count < m_AbnormalCheckCount)
+  
+  while (checkCount < m_AbnormalCheckCount)
   {
-    // Ensure that the voltage is insufficient or the motor resistance is high, causing an abnormality.
-    if (check_abnormal_count > 0)
-    {
-      delay(check_abnormal_count * 1000);
-    }
+    // printf("checkLidarAbnormal %d\n", checkCount);
+
+    // Ensure that the voltage is insufficient or the motor resistance is high, 
+    //causing an abnormality.
+    if (checkCount)
+      delay(500);
 
     float scan_time = 0.0;
     uint64_t start_time = 0;
     uint64_t end_time = 0;
-    op_result = RESULT_OK;
+    int checkOneCount = 0;
+    ret = RESULT_OK;
 
-    while (buffer_count < 10 &&
-           (scan_time < 0.05 || !lidarPtr->getSingleChannel()) &&
-           IS_OK(op_result))
+    //单双通雷达，计算采样率
+    while (checkOneCount < 5 &&
+          //  (scan_time < 0.05 || !lidarPtr->getSingleChannel()) &&
+           IS_OK(ret))
     {
+      checkOneCount ++;
       start_time = getTime();
       count = ydlidar::YDlidarDriver::MAX_SCAN_NODES;
-      op_result = lidarPtr->grabScanData(global_nodes, count);
+      ret = lidarPtr->grabScanData(global_nodes, count);
       end_time = getTime();
       scan_time = 1.0 * static_cast<int64_t>(end_time - start_time) / 1e9;
-      buffer_count++;
-
-      if (IS_OK(op_result))
+      
+      if (IS_OK(ret))
       {
+        // 获取CT信息
+        if (!(lidarPtr->getHasDeviceInfo() & EPT_Module))
+        {
+          LaserDebug debug = {0};
+          for (int i = 0; i < count; ++i)
+          {
+            parsePackageNode(global_nodes[i], debug);
+            if (global_nodes[i].error)
+              debug.maxIndex = 255;
+          }
+          // 解析V2协议雷达扫描数据中ct信息中的设备信息
+          getDeviceInfoByPackage(debug);
+        }
+
         if (isNetTOFLidar(m_LidarType))
         {
-          return !IS_OK(op_result);
+          return IS_OK(ret);
         }
 
-        if (CalculateSampleRate(count, scan_time))
+        data.push_back(count);
+        if (std::abs(static_cast<int>(data.front() - count)) > 10)
+          data.erase(data.begin());
+
+        if (calcSampleRate(count, scan_time))
         {
+          // 双通雷达计算完采样率即可返回
           if (!lidarPtr->getSingleChannel())
           {
-            return !IS_OK(op_result);
+            return IS_OK(ret);
           }
         }
-      }
-      else
-      {
-        check_abnormal_count++;
-      }
-    }
-
-    //单通雷达，计算采样率、固定分辨率时的一圈点数
-    if (IS_OK(op_result) && lidarPtr->getSingleChannel())
-    {
-      data.push_back(count);
-      int collection = 0;
-
-      while (collection < 5)
-      {
-        count = ydlidar::YDlidarDriver::MAX_SCAN_NODES;
-        start_time = getTime();
-        op_result = lidarPtr->grabScanData(global_nodes, count);
-        end_time = getTime();
-
-        if (IS_OK(op_result))
+        else
         {
-          if (isNetTOFLidar(m_LidarType))
-          {
-            return !IS_OK(op_result);
-          }
-
-          if (std::abs(static_cast<int>(data.front() - count)) > 10)
-          {
-            data.erase(data.begin());
-          }
-
-          scan_time = 1.0 * static_cast<int64_t>(end_time - start_time) / 1e9;
-          bool ret = CalculateSampleRate(count, scan_time);
-
+          //计算采样率
           if (scan_time > 0.05 && scan_time < 0.5)
           {
-            if (!ret)
-            {
-              m_SampleRate = static_cast<int>((count / scan_time + 500) / 1000);
-              m_PointTime = 1e9 / (m_SampleRate * 1000);
-              lidarPtr->setPointTime(m_PointTime);
-            }
-          }
-
-          data.push_back(count);
-
-          if (ret)
-          {
-            break;
+            m_SampleRate = static_cast<int>((count / scan_time + 500) / 1000);
+            m_PointTime = 1e9 / (m_SampleRate * 1000);
+            lidarPtr->setPointTime(m_PointTime);
           }
         }
-
-        collection++;
-      }
-
-      if (data.size() > 1)
-      {
-        int total = accumulate(data.begin(), data.end(), 0);
-        int mean = total / data.size(); // mean value
-        m_FixedSize = (static_cast<int>((mean + 5) / 10)) * 10;
-        printf("[YDLIDAR] Single Fixed Size: %d\n", m_FixedSize);
-        printf("[YDLIDAR] Sample Rate: %.02fK\n", m_SampleRate);
-        return false;
       }
     }
 
-    check_abnormal_count++;
+    //单通雷达计算固定分辨率时的一圈点数
+    if (lidarPtr->getSingleChannel() &&
+      data.size() > 1)
+    {
+      int total = accumulate(data.begin(), data.end(), 0);
+      int mean = total / data.size(); // mean value
+      m_FixedSize = (static_cast<int>((mean + 5) / 10)) * 10;
+      printf("[YDLIDAR] Single Fixed Size: %d\n", m_FixedSize);
+      printf("[YDLIDAR] Sample Rate: %.02fK\n", m_SampleRate);
+      return true;
+    }
+
+    checkCount ++;
   }
 
-  return !IS_OK(op_result);
+  return IS_OK(ret);
 }
 
 /*-------------------------------------------------------------
@@ -1208,9 +1191,9 @@ inline void removeExceptionSample(std::map<int, int> &smap)
 }
 
 /*-------------------------------------------------------------
-                    CalculateSampleRate
+                    calcSampleRate
 -------------------------------------------------------------*/
-bool CYdLidar::CalculateSampleRate(int count, double scan_time)
+bool CYdLidar::calcSampleRate(int count, double scan_time)
 {
   if (count < 1)
     return false;
@@ -1365,7 +1348,7 @@ bool CYdLidar::getDeviceInfo()
     DriverInterface::DEFAULT_TIMEOUT / 2);
   if (!IS_OK(op_result))
   {
-    fprintf(stderr, "[YDLIDAR] Fail to get device information\n");
+    fprintf(stderr, "[YDLIDAR] Fail to get baseplate device information\n");
     return false;
   }
 
@@ -1412,7 +1395,7 @@ bool CYdLidar::getDeviceInfo()
   lidarPtr->setIntensityBit(m_IntensityBit);
   ret = true;
 
-  if (printfVersionInfo(di, m_SerialPort, m_SerialBaudrate))
+  if (printfDeviceInfo(di, EPT_Baseplate))
   {
     Major = (uint8_t)(di.firmware_version >> 8);
     Minjor = (uint8_t)(di.firmware_version & 0xff);
@@ -1473,37 +1456,38 @@ bool CYdLidar::getDeviceInfo()
   return ret;
 }
 
-/*-------------------------------------------------------------
-                    handleSingleChannelDevice
--------------------------------------------------------------*/
 void CYdLidar::handleSingleChannelDevice()
 {
-  if (!lidarPtr || 
-    lidarPtr->getBottom() ||
-    !lidarPtr->getSingleChannel())
+  if (!lidarPtr ||
+      lidarPtr->getBottom() ||
+      !lidarPtr->getSingleChannel())
   {
     return;
   }
 
-  device_info devinfo;
-  memset(&devinfo, 0, sizeof(device_info));
+  //获取模组设备信息
+  //1、单通雷达需要从CT信息中获取模组设备信息
+  //2、双通雷达需要获取启动时抛出的模组设备信息
 
-  result_t op_result = lidarPtr->getDeviceInfo(devinfo);
+  device_info di;
+  memset(&di, 0, sizeof(device_info));
+
+  result_t op_result = lidarPtr->getDeviceInfo(di);
   if (!IS_OK(op_result))
   {
     return;
   }
 
-  if (printfVersionInfo(devinfo, m_SerialPort, m_SerialBaudrate))
+  if (printfDeviceInfo(di, EPT_Module))
   {
-    m_LidarVersion.hardware = devinfo.hardware_version;
+    m_LidarVersion.hardware = di.hardware_version;
     m_LidarVersion.soft_major = Major;
     m_LidarVersion.soft_minor = Minjor / 10;
     m_LidarVersion.soft_patch = Minjor % 10;
-    memcpy(&m_LidarVersion.sn[0], &devinfo.serialnum[0], 16);
+    memcpy(&m_LidarVersion.sn[0], &di.serialnum[0], SDK_SNLEN);
   }
 
-  lidar_model = devinfo.model;
+  lidar_model = di.model;
   // defalutSampleRate = getDefaultSampleRate(devinfo.model);
 
   printf("[YDLIDAR] Single Channel Current Sampling Rate: %.02fK\n", m_SampleRate);
@@ -1819,7 +1803,7 @@ bool CYdLidar::checkHardware()
     return false;
   }
 
-  if (isScanning && lidarPtr->isscanning())
+  if (scanning && lidarPtr->isscanning())
   {
     return true;
   }

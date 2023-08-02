@@ -193,8 +193,8 @@ enum EaiPlatformType
 {
   EPT_None = 0x00, //无
   EPT_Module = 0x01, //模组
-  EPT_Baseplate = 0x02, //底板
-  EPT_All = (EPT_Module | EPT_Baseplate), //所有
+  EPT_Base = 0x02, //底板
+  EPT_All = (EPT_Module | EPT_Base), //所有
 };
 
 #if defined(_WIN32)
@@ -361,12 +361,15 @@ struct gs_packages {
     bool right = false;
     node_info points[GS_MAXPOINTS];
 } __attribute__((packed));
+
 //GS点数据结构
 struct gs_node {
-  uint16_t dist : 9;
-  uint16_t qual : 7;
+  // uint16_t dist : 9;
+  // uint16_t qual : 7;
+  uint16_t node;
 } __attribute__((packed));
 #define GSNODESIZE sizeof(gs_node) //定义GS点大小
+
 //GS单包数据结构
 struct gs_node_package {
   uint32_t head;

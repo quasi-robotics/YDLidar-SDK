@@ -1020,8 +1020,10 @@ bool CYdLidar::getDeviceInfoByPackage(const LaserDebug &debug)
 /*-------------------------------------------------------------
                     resample
 -------------------------------------------------------------*/
-void CYdLidar::resample(int frequency, int count, uint64_t tim_scan_end,
-                        uint64_t tim_scan_start)
+void CYdLidar::resample(
+  int frequency, int count, 
+  uint64_t tim_scan_end,
+  uint64_t tim_scan_start)
 {
   //重新校准采样率
   // if( (lidar_model  == DriverInterface::YDLIDAR_TG15)
@@ -1405,11 +1407,19 @@ bool CYdLidar::getDeviceInfo()
     Minjor = (uint8_t)(di.firmware_version & 0xff);
     m_LidarVersion.hardware = di.hardware_version;
     m_LidarVersion.soft_major = Major;
-    m_LidarVersion.soft_minor = Minjor / 10;
-    m_LidarVersion.soft_patch = Minjor % 10;
-    memcpy(&m_LidarVersion.sn[0], &di.serialnum[0], 16);
+    if (isGSLidar(m_LidarType))
+    {
+      m_LidarVersion.soft_minor = Minjor;
+      m_LidarVersion.soft_patch = 0;
+    }
+    else
+    {
+      m_LidarVersion.soft_minor = Minjor / 10;
+      m_LidarVersion.soft_patch = Minjor % 10;
+    }
+    memcpy(&m_LidarVersion.sn[0], &di.serialnum[0], SDK_SNLEN);
 
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < SDK_SNLEN; i++)
     {
       serial_number += std::to_string(di.serialnum[i] & 0xff);
     }
@@ -1603,7 +1613,7 @@ bool CYdLidar::checkScanFrequency()
   else
   {
     m_ScanFrequency += frequencyOffset;
-    fprintf(stderr, "current scan frequency[%f] is out of range.",
+    fprintf(stderr, "current scan frequency[%f] is out of range.\n",
             m_ScanFrequency - frequencyOffset);
   }
 
@@ -1766,8 +1776,8 @@ bool CYdLidar::checkCOMMs()
     else
     {
       fprintf(stderr,
-              "[YDLIDAR] Error, cannot bind to the specified %s[%s] and %s[%d]\n",
-              m_DeviceType != YDLIDAR_TYPE_SERIAL ? "IP Adddress" : "serial port",
+              "[YDLIDAR] Error, cannot bind to the specified [%s:%s] and [%s:%d]\n",
+              m_DeviceType != YDLIDAR_TYPE_SERIAL ? "IP Address" : "serial port",
               m_SerialPort.c_str(), m_DeviceType != YDLIDAR_TYPE_SERIAL ? "network port" : "baudrate", m_SerialBaudrate);
     }
 
@@ -1780,7 +1790,7 @@ bool CYdLidar::checkCOMMs()
   lidarPtr->setSupportMotorDtrCtrl(m_SupportMotorDtrCtrl);
   lidarPtr->setBottom(m_Bottom);
 
-  printf("[YDLIDAR] Lidar successfully connected %s[%d]\n", 
+  printf("[YDLIDAR] Lidar successfully connected [%s:%d]\n", 
     m_SerialPort.c_str(), m_SerialBaudrate);
   return true;
 }

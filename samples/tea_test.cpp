@@ -31,15 +31,12 @@
 *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 *  POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
-
 #include <iostream>
 #include <string>
 #include <algorithm>
 #include <cctype>
-#include <core/base/timer.h>
 #include "CYdLidar.h"
-#include "core/common/ydlidar_help.h"
-
+#include "filters/NoiseFilter.h"
 
 using namespace std;
 using namespace ydlidar;
@@ -48,20 +45,6 @@ using namespace ydlidar;
 #pragma comment(lib, "ydlidar_sdk.lib")
 #endif
 
-/**
- * @brief gs test
- * @param argc
- * @param argv
- * @return
- * @par Flow chart
- * Step1: instance CYdLidar.\n
- * Step2: set paramters.\n
- * Step3: initialize SDK and LiDAR.(::CYdLidar::initialize)\n
- * Step4: Start the device scanning routine which runs on a separate thread and enable motor.(::CYdLidar::turnOn)\n
- * Step5: Get the LiDAR Scan Data.(::CYdLidar::doProcessSimple)\n
- * Step6: Stop the device scanning thread and disable motor.(::CYdLidar::turnOff)\n
- * Step7: Uninitialize the SDK and Disconnect the LiDAR.(::CYdLidar::disconnecting)\n
- */
 
 int main(int argc, char *argv[]) 
 {
@@ -75,79 +58,74 @@ int main(int argc, char *argv[])
   std::string port;
   ydlidar::os_init();
 
-  std::map<std::string, std::string> ports = ydlidar::lidarPortList();
-  std::map<std::string, std::string>::iterator it;
-
-  ports["IP1"] = "192.168.1.200";
-
-  if (ports.size() == 1) {
-    port = ports.begin()->second;
-  } else {
+  // 让用户选择IP或者手动输入IP
+  {
+    // 命令TCP 192.168.0.11 8090
+    // 点云UDP 8000
+    // 广播UDP 7777
+    std::map<std::string, std::string> ports;
+    std::map<std::string, std::string>::iterator it;
+    ports["IP1"] = "192.168.0.11";
+    ports["IP2"] = "Manual input IP";
     int id = 0;
-
-    for (it = ports.begin(); it != ports.end(); it++) {
+    for (it = ports.begin(); it != ports.end(); ++it)
+    {
       printf("[%d] %s %s\n", id, it->first.c_str(), it->second.c_str());
       id++;
     }
 
-    if (ports.empty()) {
-      printf("Not Lidar was detected. Please enter the lidar serial port:");
-      std::cin >> port;
-    } else {
-      while (ydlidar::os_isOk()) {
-        printf("Please select the lidar port:");
-        std::string number;
-        std::cin >> number;
+    while (ydlidar::os_isOk())
+    {
+      printf("Please select the lidar port index: ");
+      std::string number;
+      std::cin >> number;
 
-        if ((size_t)atoi(number.c_str()) >= ports.size()) {
-          continue;
-        }
+      if ((size_t)atoi(number.c_str()) >= ports.size())
+        continue;
 
-        it = ports.begin();
-        id = atoi(number.c_str());
-
-        while (id) {
-          id--;
-          it++;
-        }
-
-        port = it->second;
-        break;
+      it = ports.begin();
+      id = atoi(number.c_str());
+      while (id)
+      {
+        id--;
+        it++;
       }
+      port = it->second;
+      break;
+    }
+
+    if (port == ports["IP2"])
+    {
+      printf("Please enter the lidar IP: ");
+      std::cin >> port;
     }
   }
 
-  int baudrate = 921600;
-  std::map<int, int> baudrateList;
-  baudrateList[0] = 8000; //网络端口
-  baudrateList[1] = 921600; //串口波特率
-  printf("Baudrate:\n");
-  for (std::map<int, int>::iterator it = baudrateList.begin();
-       it != baudrateList.end(); it++) {
-    printf("[%d] %d\n", it->first, it->second);
-  }
-
-  while (ydlidar::os_isOk()) 
-  {
-    printf("Please select the lidar baudrate:");
-    std::string number;
-    std::cin >> number;
-
-    if ((size_t)atoi(number.c_str()) > baudrateList.size()) {
-      continue;
-    }
-
-    baudrate = baudrateList[atoi(number.c_str())];
-    break;
-  }
+  int baudrate = 8090;
 
   if (!ydlidar::os_isOk()) {
     return 0;
   }
 
   bool isSingleChannel = false;
-  float frequency = 8.0;
 
+  std::string input_frequency;
+
+  float frequency = 20.0f;
+
+  while (ydlidar::os_isOk() && !isSingleChannel) 
+  {
+    printf("Please input the lidar scan frequency[10-30]: ");
+    std::cin >> input_frequency;
+    frequency = atof(input_frequency.c_str());
+    if (frequency <= 30.0 && frequency >= 10.0) {
+      break;
+    }
+
+    fprintf(stderr, "Invalid scan frequency Please re-input.\n");
+  }
+
+  /// instance
   CYdLidar laser;
   //////////////////////string property/////////////////
   /// lidar port
@@ -157,24 +135,24 @@ int main(int argc, char *argv[])
   ignore_array.clear();
   laser.setlidaropt(LidarPropIgnoreArray, ignore_array.c_str(),
                     ignore_array.size());
+
   //////////////////////int property/////////////////
   /// lidar baudrate
   laser.setlidaropt(LidarPropSerialBaudrate, &baudrate, sizeof(int));
-  /// gs lidar
-  int optval = TYPE_GS;
+  /// tof lidar
+  int optval = TYPE_TOF;
   laser.setlidaropt(LidarPropLidarType, &optval, sizeof(int));
-  /// device type (YDLIDAR_TYPE_TCP,YDLIDAR_TYPE_SERIAL)
-  optval = baudrate == baudrateList[0] ? YDLIDAR_TYPE_TCP : YDLIDAR_TYPE_SERIAL; 
+  /// device type
+  optval = YDLIDAR_TYPE_TCP;
   laser.setlidaropt(LidarPropDeviceType, &optval, sizeof(int));
   /// sample rate
-  optval = isSingleChannel ? 3 : 4;
+  optval = 30;
   laser.setlidaropt(LidarPropSampleRate, &optval, sizeof(int));
   /// abnormal count
   optval = 4;
   laser.setlidaropt(LidarPropAbnormalCheckCount, &optval, sizeof(int));
-  /// Intenstiy bit count
-  optval = 8;
-  laser.setlidaropt(LidarPropIntenstiyBit, &optval, sizeof(int));
+//  optval = 16;
+//  laser.setlidaropt(LidarPropIntenstiyBit, &optval, sizeof(int));
 
   //////////////////////bool property/////////////////
   /// fixed angle resolution
@@ -187,16 +165,13 @@ int main(int argc, char *argv[])
   b_optvalue = true;
   laser.setlidaropt(LidarPropAutoReconnect, &b_optvalue, sizeof(bool));
   /// one-way communication
-  laser.setlidaropt(LidarPropSingleChannel, &isSingleChannel, sizeof(bool));
+  b_optvalue = isSingleChannel;
+  laser.setlidaropt(LidarPropSingleChannel, &b_optvalue, sizeof(bool));
   /// intensity
   b_optvalue = true;
   laser.setlidaropt(LidarPropIntenstiy, &b_optvalue, sizeof(bool));
   /// Motor DTR
-  b_optvalue = true;
   laser.setlidaropt(LidarPropSupportMotorDtrCtrl, &b_optvalue, sizeof(bool));
-  /// HeartBeat
-  b_optvalue = false;
-  laser.setlidaropt(LidarPropSupportHeartBeat, &b_optvalue, sizeof(bool));
 
   //////////////////////float property/////////////////
   /// unit: °
@@ -204,81 +179,37 @@ int main(int argc, char *argv[])
   laser.setlidaropt(LidarPropMaxAngle, &f_optvalue, sizeof(float));
   f_optvalue = -180.0f;
   laser.setlidaropt(LidarPropMinAngle, &f_optvalue, sizeof(float));
+
   /// unit: m
-  f_optvalue = 1.f;
+  f_optvalue = 64.f;
   laser.setlidaropt(LidarPropMaxRange, &f_optvalue, sizeof(float));
-  f_optvalue = 0.025f;
+  f_optvalue = 0.05f;
   laser.setlidaropt(LidarPropMinRange, &f_optvalue, sizeof(float));
   /// unit: Hz
   laser.setlidaropt(LidarPropScanFrequency, &frequency, sizeof(float));
 
-  //雷达初始化
+  /// initialize SDK and LiDAR.
   bool ret = laser.initialize();
-  if (!ret)
-  {
-    fprintf(stderr, "Fail to initialize %s\n", laser.DescribeError());
-    fflush(stderr);
-    return -1;
-  }
-  //设置雷达工作模式（0表示避障模式，1表示沿边模式）
-  // ret &= laser.setWorkMode(0, 0x01);
-  // ret &= laser.setWorkMode(0, 0x02);
-  // ret &= laser.setWorkMode(1, 0x04);
-  // if (!ret)
-  // {
-  //   fprintf(stderr, "Fail to set work mode %s\n", laser.DescribeError());
-  //   fflush(stderr);
-  //   return -1;
-  // }
-  //获取级联雷达设备信息
-  // std::vector<device_info_ex> dis;
-  // ret = laser.getDeviceInfo(dis);
-  // if (!ret)
-  // {
-  //   fprintf(stderr, "Fail to get Device infomations %s\n", laser.DescribeError());
-  //   fflush(stderr);
-  //   return -1;
-  // }
-  // for (int i=0; i<dis.size(); ++i)
-  // {
-  //   const device_info_ex& di = dis.at(i);
-  //   printf("Device [%u]\n", di.id);
-  //   ydlidar::core::common::printfDeviceInfo(di.di, EPT_Module);
-  // }
 
-  //启动扫描
-  ret = laser.turnOn();
-  if (!ret)
-  {
-    fprintf(stderr, "Fail to turn on %s\n", laser.DescribeError());
+  if (ret) {//success
+    /// Start the device scanning routine which runs on a separate thread and enable motor.
+    ret = laser.turnOn();
+  } else {//failed
+    fprintf(stderr, "%s\n", laser.DescribeError());
     fflush(stderr);
-    return -1;
   }
 
   LaserScan scan;
-  //打印帧间隔
-  // std::map<int, uint32_t> ts;
-  // ts[0] = getms();
-  // ts[1] = getms();
-  // ts[2] = getms();
+  LaserScan outScan;
 
   while (ret && ydlidar::os_isOk())
   {
+    /// Turn On success and loop
     if (laser.doProcessSimple(scan))
     {
-      printf("[%llu] points in module num [%d] env flag [0x%04X]\n",
-             scan.points.size(),
-             scan.moduleNum,
-             scan.envFlag);
-      // uint32_t t = getms();
-      // printf("module[%d] time[%lld]\n", scan.moduleNum, t - ts[scan.moduleNum]);
-      // ts[scan.moduleNum] = t;
-
-      // for (size_t i = 0; i < scan.points.size(); ++i)
-      // {
-      //   const LaserPoint &p = scan.points.at(i);
-      //   printf("%lu a %.01f r %.01f\n", i, p.angle * 180.0f / M_PI, p.range * 1000.0f);
-      // }
+      fprintf(stdout, "Scan received [%llu] points is [%f]s\n",
+              scan.points.size(),
+              scan.config.scan_time);
       fflush(stdout);
     }
     else
@@ -288,7 +219,9 @@ int main(int argc, char *argv[])
     }
   }
 
+  /// Stop the device scanning thread and disable motor.
   laser.turnOff();
+  /// Uninitialize the SDK and Disconnect the LiDAR.
   laser.disconnecting();
 
   return 0;

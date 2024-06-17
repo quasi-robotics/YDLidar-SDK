@@ -698,7 +698,7 @@ bool Serial::SerialImpl::open() {
 //        fprintf(stderr, "Too many open files\n");
 
       default:
-//        fprintf(stderr, "Default: %d\n", errno);
+        fprintf(stderr, "Open error: %d\n", errno);
         close();
         return false;
     }
@@ -707,6 +707,7 @@ bool Serial::SerialImpl::open() {
   termios tio;
 
   if (!getTermios(&tio)) {
+    fprintf(stderr, "getTermios error: %d\n", errno);
     close();
     return false;
   }
@@ -718,11 +719,13 @@ bool Serial::SerialImpl::open() {
   set_flowcontrol(&tio, flowcontrol_);
 
   if (!setTermios(&tio)) {
+    fprintf(stderr, "setTermios error: %d\n", errno);
     close();
     return false;
   }
 
   if (!setBaudrate(baudrate_)) {
+    fprintf(stderr, "setBaudrate error: %d\n", errno);
     close();
     return false;
   }

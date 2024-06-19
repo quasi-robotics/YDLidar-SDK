@@ -425,6 +425,7 @@ result_t YDlidarDriver::checkAutoConnecting(bool serialError)
   result_t ans = RESULT_FAIL;
   isAutoconnting = true;
   m_InvalidNodeCount = 0;
+  std::string _serial_port = serial_port;
 
   if (m_driverErrno != BlockError)
   {
@@ -478,7 +479,7 @@ result_t YDlidarDriver::checkAutoConnecting(bool serialError)
 
     if (!m_isConnected && ((retryCount % 2 == 1) || serialError))
     {
-      if (!IS_OK(connect(serial_port.c_str(), m_baudrate)))
+      if (!IS_OK(connect(_serial_port.c_str(), m_baudrate)))
       {
         setDriverError(NotOpenError);
       }
@@ -503,7 +504,7 @@ result_t YDlidarDriver::checkAutoConnecting(bool serialError)
     int retryConnect = 0;
 
     while (isAutoReconnect &&
-           connect(serial_port.c_str(), m_baudrate) != RESULT_OK)
+           connect(_serial_port.c_str(), m_baudrate) != RESULT_OK)
     {
       retryConnect++;
 

@@ -676,6 +676,8 @@ bool Serial::SerialImpl::open() {
 
 #endif
 
+  close();
+
   fd_ = ::open(port_.c_str(),
                O_RDWR | O_NOCTTY | O_NONBLOCK | O_APPEND | O_NDELAY);
 
@@ -698,7 +700,7 @@ bool Serial::SerialImpl::open() {
 //        fprintf(stderr, "Too many open files\n");
 
       default:
-        fprintf(stderr, "Open error: %d\n", errno);
+        fprintf(stderr, "Error opening port %s: %d\n", port_.c_str(), errno);
         close();
         return false;
     }

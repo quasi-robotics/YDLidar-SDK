@@ -17,7 +17,7 @@ ELSE()
 ENDIF()
 ##################################################
 #c++ 11
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 
 ##########################################################
 IF (CMAKE_SYSTEM_NAME MATCHES "Linux")

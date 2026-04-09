@@ -176,6 +176,25 @@ class YDLIDAR_API CYdLidar {
   bool getDeviceInfo(device_info& di, int type);
   //获取级联设备信息
   bool getDeviceInfo(std::vector<device_info_ex>& dis);
+  //设置是否自动识别强度（启用时会占用一定时间）
+  void setAutoIntensity(bool yes=false);
+  //获取俯仰角值（目前仅针对Tmini Plus（森合））
+  bool getPitchAngle(float& pitch);
+
+  //启用调试
+  void setEnableDebug(bool yes) {m_Debug = yes;}
+
+  //OTA功能相关
+  //设置OTA文件路径
+  void setOtaFile(const std::string& name) {
+    otaName = name;
+  }
+  //设置OTA文件加密
+  void setOtaEncode(bool e) {
+    otaEncode = e;
+  }
+  //开始OTA升级
+  bool ota();
 
 // private:
   /**
@@ -184,13 +203,13 @@ class YDLIDAR_API CYdLidar {
    * @return true if communication has been established with the device.
    *  If it's not false on error.
    */
-  bool  checkCOMMs();
+  bool checkConnect();
   /**
    * @brief check LiDAR health state and device information
    * @return true if health status and device information has been obtained with the device.
    * If it's not, false on error
    */
-  bool  checkStatus();
+  bool checkStatus();
 
   /**
    * @brief check LiDAR scan state
@@ -269,10 +288,9 @@ class YDLIDAR_API CYdLidar {
     */
   void handleSingleChannelDevice();
 
-
   /**
     * @brief Parse Version by Package Information
-    * @param debug  LiDAR Point CT Pakcage Information
+    * @param debug LiDAR Point CT Pakcage Information
     */
   bool getDeviceInfoByPackage(const LaserDebug &debug);
 
@@ -298,7 +316,6 @@ class YDLIDAR_API CYdLidar {
   bool isAngleOffsetCorrected() const;
 
  private:
-  bool    scanning;               ///< LiDAR is Scanning
   int     m_FixedSize;              ///< Fixed LiDAR Points
   float   m_AngleOffset;            ///< Zero angle offset value
   bool    m_isAngleOffsetCorrected; ///< Has the Angle offset been corrected
@@ -333,6 +350,7 @@ class YDLIDAR_API CYdLidar {
   bool m_SingleChannel;             ///< LiDAR single channel
   bool m_Intensity;                 ///< LiDAR Intensity
   int m_IntensityBit;               ///< LiDAR Intensity bit
+  bool m_AutoIntensity; //自动识别强度
   bool m_SupportMotorDtrCtrl;       ///< LiDAR Motor DTR
   bool m_SupportHearBeat;           ///< LiDAR HeartBeat
 
@@ -349,14 +367,19 @@ class YDLIDAR_API CYdLidar {
   float m_MinRange;                 ///< LiDAR minimum range
   float m_ScanFrequency;            ///< LiDAR scanning frequency
   bool m_Bottom = true; //是否底板优先
+  bool m_Debug = false; //是否启用调试
 
   bool m_SunNoise = false; //阳光噪点过滤标识
   bool m_GlassNoise = false; //玻璃噪点过滤标识
+  std::string otaName; //OTA文件路径
+  bool otaEncode = true; //OTA是否加密
+  uint64_t lastStamp = 0; //时间戳
 };	// End of class
 #endif // CYDLIDAR_H
 
 //os
-namespace ydlidar {
+namespace ydlidar 
+{
 /**
  * @brief system signal initialize
  */
@@ -370,12 +393,13 @@ YDLIDAR_API bool os_isOk();
  * @brief shutdown system signal
  */
 YDLIDAR_API void os_shutdown();
-
 /**
  * @brief lidarPortList
  * @return
  */
 YDLIDAR_API std::map<std::string, std::string> lidarPortList();
+//打印logo字符
+YDLIDAR_API void printLogo();
 
 }
 

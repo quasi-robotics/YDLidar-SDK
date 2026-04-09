@@ -1,17 +1,21 @@
 ﻿#pragma once
+#include <map>
+#include <thread>
 #include <core/base/v8stdint.h>
 #include <core/base/thread.h>
 #include <core/base/locker.h>
-#include <map>
+#include <core/base/datatype.h>
 #include "ydlidar_protocol.h"
 #include "ydlidar_def.h"
-#include <core/base/datatype.h>
+#include "ydlidar_config.h"
+
 
 namespace ydlidar
 {
   namespace core
   {
     using namespace base;
+
     namespace common
     {
 
@@ -40,6 +44,8 @@ namespace ydlidar
         PropertyBuilderByName(bool, Debug, protected);
         // 扫描频率
         PropertyBuilderByName(float, ScanFreq, protected);
+        // 采样率
+        PropertyBuilderByName(float, SampleRate, protected);
         // 是否底板优先
         PropertyBuilderByName(bool, Bottom, protected);
         // 是否已获取到设备信息
@@ -48,12 +54,18 @@ namespace ydlidar
         PropertyBuilderByName(device_info, BaseDevInfo, protected);
         //模组设备信息
         PropertyBuilderByName(device_info, ModuleDevInfo, protected);
+        //OTA文件
+        PropertyBuilderByName(std::string, OtaName, protected);
+        //OTA文件加密
+        PropertyBuilderByName(bool, OtaEncode, protected);
+        //是否启用自动强度判断
+        PropertyBuilderByName(bool, AutoIntensity, protected);
 
         /**
          * @par Constructor
          *
          */
-        DriverInterface() : serial_port(""),
+        DriverInterface() : m_port(""),
                             m_baudrate(8000),
                             m_intensities(false),
                             m_intensityBit(10),
@@ -83,6 +95,7 @@ namespace ydlidar
           m_ScanFreq = 0;
           m_Bottom = true;
           m_HasDeviceInfo = EPT_None;
+          m_AutoIntensity = true;
         }
 
         virtual ~DriverInterface() {}
@@ -173,7 +186,9 @@ namespace ydlidar
          * static function
          * @return Version
          */
-        virtual std::string getSDKVersion() = 0;
+        virtual std::string getSDKVersion() {
+          return YDLIDAR_SDK_VERSION_STR;
+        }
 
         /**
          * @brief Is the Lidar in the scan \n
@@ -181,7 +196,9 @@ namespace ydlidar
          * @retval true     scanning
          * @retval false    non-scanning
          */
-        virtual bool isscanning() const = 0;
+        virtual bool isscanning() const {
+          return m_isScanning;
+        }
 
         /**
          * @brief Is it connected to the lidar \n
@@ -189,7 +206,9 @@ namespace ydlidar
          * @retval true     connected
          * @retval false    Non-connected
          */
-        virtual bool isconnected() const = 0;
+        virtual bool isconnected() const {
+          return m_isConnected;
+        }
 
         /**
          * @brief Is there intensity \n
@@ -212,7 +231,9 @@ namespace ydlidar
          *   true	support
          *   false no support
          */
-        virtual void setAutoReconnect(const bool &enable) = 0;
+        virtual void setAutoReconnect(const bool &enable) {
+          isAutoReconnect = enable;
+        }
 
         /**
          * @brief Get current scan update configuration.
@@ -276,8 +297,13 @@ namespace ydlidar
          * @retval RESULT_FAILE    failed
          * @note Just turn it on once
          */
-        virtual result_t startScan(bool force = false,
-                                   uint32_t timeout = DEFAULT_TIMEOUT) = 0;
+        virtual result_t startScan(
+          bool force = false,
+          uint32_t timeout = DEFAULT_TIMEOUT) {
+            UNUSED(force);
+            UNUSED(timeout); 
+            return RESULT_FAIL;
+          }
 
         /**
          * @brief turn off scanning \n
@@ -285,7 +311,9 @@ namespace ydlidar
          * @retval RESULT_OK       success
          * @retval RESULT_FAILE    failed
          */
-        virtual result_t stop() = 0;
+        virtual result_t stop() {
+          return RESULT_FAIL;
+        }
 
         /**
          * @brief Get a circle of laser data \n
@@ -462,13 +490,28 @@ namespace ydlidar
          * @param[in] addr 雷达地址
          * @return 成功返回RESULT_OK，否则返回非RESULT_OK
          */
-        virtual result_t setWorkMode(int mode = 0, uint8_t addr = 0x00) { return RESULT_FAIL; }
+        virtual result_t setWorkMode(int mode = 0, uint8_t addr = 0x00) { 
+          return RESULT_FAIL; 
+        }
 
         /**
          * @brief 解析点云数据并判断带不带强度信息（目前只针对三角雷达）
          * @return 成功返回RESULT_OK，否则返回非RESULT_OK
          */
-        virtual result_t getIntensityFlag() { return RESULT_OK; }
+        virtual result_t getIntensityFlag() { 
+          return RESULT_OK; 
+        }
+
+        //获取俯仰角值
+        virtual bool getPitchAngle(float& pitch) {
+          UNUSED(pitch);
+          return false;
+        }
+
+        // 开始OTA升级
+        virtual bool ota() {
+          return false;
+        }
 
       public:
         enum YDLIDAR_MODLES
@@ -497,6 +540,7 @@ namespace ydlidar
           YDLIDAR_G5 = 20,            /**< G5 LiDAR Model. */
           YDLIDAR_G7 = 21,            /**< G7 LiDAR Model. */
           YDLIDAR_SCL = 22,           // SCL雷达
+          YDLIDAR_R3 = 23, //R3雷达
 
           YDLIDAR_GS2 = 51, // GS2雷达
           YDLIDAR_GS1 = 52, // GS1雷达
@@ -509,15 +553,23 @@ namespace ydlidar
 
           YDLIDAR_TEA = 110, //TEA雷达
 
-          YDLIDAR_TSA = 130,      /**< TSA LiDAR Model. */
-          YDLIDAR_Tmini = 140,    /**< Tmini LiDAR Model. */
-          YDLIDAR_TminiPRO = 150, /**< Tmini PRO LiDAR Model. */
+          YDLIDAR_TSA = 130, /**< TSA LiDAR Model. */
+          YDLIDAR_TSAPro = 131, /**< TSA Pro LiDAR Model. */
+          YDLIDAR_Tmini = 140, /**< Tmini LiDAR Model. */
+          YDLIDAR_TminiPro = 150, /**< Tmini Pro LiDAR Model. */
+          YDLIDAR_TminiPlus = 151, /**< Tmini Plus LiDAR Model. */
+          YDLIDAR_TminiPlusSH = 152, //Tmini Plus 森合
 
-          YDLIDAR_SDM15 = 160, // SDM15单点雷达
+          YDLIDAR_SDM15 = 160, //SDM15单点雷达
+          YDLIDAR_SDM18, //DTS单点雷达
 
           YDLIDAR_T15 = 200, /**< T15 LiDAR Model. */
 
-          YDLIDAR_Tail,
+          YDLIDAR_TIA = 210, //TIA雷达
+          YDLIDAR_TIA_H = 211, //TIA-H雷达
+          YDLIDAR_TIA_X = 212, //TIA-X雷达
+
+          YDLIDAR_Tail = 255,
         };
 
         enum YDLIDAR_RATE
@@ -533,8 +585,8 @@ namespace ydlidar
         {
           DEFAULT_TIMEOUT = 2000,    /**< Default timeout. */
           DEFAULT_HEART_BEAT = 1000, /**< Default heartbeat timeout. */
-          MAX_SCAN_NODES = 7200,     /**< Default Max Scan Count. */
-          DEFAULT_TIMEOUT_COUNT = 1, /**< Default Timeout Count. */
+          MAX_SCAN_NODES = 5000,     /**< Default Max Scan Count. */
+          DEFAULT_TIMEOUT_COUNT = 2, /**< Default Timeout Count. */
         };
 
       protected:
@@ -548,41 +600,43 @@ namespace ydlidar
         /// Data Locker（不支持嵌套）
         Locker _lock;
         /// Parse Data thread
-        Thread _thread;
+        Thread _thread; //线程对象
+        std::thread* m_thread = nullptr; //STD线程对象
+        std::thread* m_thread2 = nullptr; //STD线程对象
         /// command locker（不支持嵌套）
         Locker _cmd_lock;
         /// driver error locker（不支持嵌套）
         Locker _error_lock;
 
         /// LiDAR com port or IP Address
-        std::string serial_port;
+        std::string m_port;
         /// baudrate or IP port
         uint32_t m_baudrate;
         /// LiDAR intensity
-        bool m_intensities;
+        bool m_intensities = false;
         /// LiDAR intensity bit
-        int m_intensityBit;
+        int m_intensityBit = 0;
 
         /// LiDAR Point pointer
-        node_info *scan_node_buf;
+        node_info *scan_node_buf = nullptr;
         /// LiDAR scan count
-        size_t scan_node_count; //<! LiDAR Scan Count
+        size_t scan_node_count = 0; //LiDAR Scan Count
         /// package sample index
-        uint16_t nodeIndex;
+        uint16_t nodeIndex = 0;
         ///
-        int retryCount;
+        int retryCount = 0;
         /// auto reconnect
-        bool isAutoReconnect;
+        bool isAutoReconnect = true;
         /// auto connecting state
-        bool isAutoconnting;
+        bool isAutoconnting = false;
         lidarConfig m_config;
 
         /// number of last error
         DriverError m_driverErrno;
 
         /// invalid node count
-        int m_InvalidNodeCount;
-        size_t m_BufferSize;
+        int m_InvalidNodeCount = 0;
+        size_t m_BufferSize = 0;
       };
 
     } // common

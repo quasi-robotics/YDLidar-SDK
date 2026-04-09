@@ -31,11 +31,17 @@
 *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 *  POSSIBILITY OF SUCH DAMAGE.
 *********************************************************************/
-#include "CYdLidar.h"
+
 #include <iostream>
 #include <string>
 #include <algorithm>
 #include <cctype>
+#include <core/base/timer.h>
+#include "CYdLidar.h"
+#include "core/common/ydlidar_help.h"
+#include "filters/StrongLightFilter.h"
+
+
 using namespace std;
 using namespace ydlidar;
 
@@ -44,7 +50,7 @@ using namespace ydlidar;
 #endif
 
 /**
- * @brief ydlidar test
+ * @brief gs test
  * @param argc
  * @param argv
  * @return
@@ -58,7 +64,8 @@ using namespace ydlidar;
  * Step7: Uninitialize the SDK and Disconnect the LiDAR.(::CYdLidar::disconnecting)\n
  */
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[]) 
+{
   printf("__   ______  _     ___ ____    _    ____  \n");
   printf("\\ \\ / /  _ \\| |   |_ _|  _ \\  / \\  |  _ \\ \n");
   printf(" \\ V /| | | | |    | || | | |/ _ \\ | |_) | \n");
@@ -69,9 +76,10 @@ int main(int argc, char *argv[]) {
   std::string port;
   ydlidar::os_init();
 
-  std::map<std::string, std::string> ports =
-    ydlidar::lidarPortList();
+  std::map<std::string, std::string> ports = ydlidar::lidarPortList();
   std::map<std::string, std::string>::iterator it;
+
+  ports["IP1"] = "192.168.1.200";
 
   if (ports.size() == 1) {
     port = ports.begin()->second;
@@ -79,7 +87,7 @@ int main(int argc, char *argv[]) {
     int id = 0;
 
     for (it = ports.begin(); it != ports.end(); it++) {
-      printf("%d. %s %s\n", id, it->first.c_str(), it->second.c_str());
+      printf("[%d] %s %s\n", id, it->first.c_str(), it->second.c_str());
       id++;
     }
 
@@ -110,75 +118,37 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  int baudrate = 230400;
-  // std::map<int, int> baudrateList;
-  // baudrateList[0] = 115200;
-  // baudrateList[1] = 128000;
-  // baudrateList[2] = 153600;
-  // baudrateList[3] = 230400;
-  // baudrateList[4] = 460800;
-  // baudrateList[5] = 512000;
+  int baudrate = 921600;
+  std::map<int, int> baudrateList;
+  baudrateList[0] = 8000; //网络端口
+  baudrateList[1] = 921600; //串口波特率
+  baudrateList[2] = 951600; //串口波特率
+  printf("Baudrate:\n");
+  for (std::map<int, int>::iterator it = baudrateList.begin();
+       it != baudrateList.end(); it++) {
+    printf("[%d] %d\n", it->first, it->second);
+  }
 
-  // printf("Baudrate:\n");
+  while (ydlidar::os_isOk()) 
+  {
+    printf("Please select the lidar baudrate:");
+    std::string number;
+    std::cin >> number;
 
-  // for (std::map<int, int>::iterator it = baudrateList.begin();
-  //      it != baudrateList.end(); it++) {
-  //   printf("%d. %d\n", it->first, it->second);
-  // }
+    if ((size_t)atoi(number.c_str()) > baudrateList.size()) {
+      continue;
+    }
 
-  // while (ydlidar::os_isOk()) {
-  //   printf("Please select the lidar baudrate:");
-  //   std::string number;
-  //   std::cin >> number;
-
-  //   if ((size_t)atoi(number.c_str()) > baudrateList.size()) {
-  //     continue;
-  //   }
-
-  //   baudrate = baudrateList[atoi(number.c_str())];
-  //   break;
-  // }
+    baudrate = baudrateList[atoi(number.c_str())];
+    break;
+  }
 
   if (!ydlidar::os_isOk()) {
     return 0;
   }
 
   bool isSingleChannel = false;
-  // std::string input_channel;
-  // printf("Whether the Lidar is one-way communication[yes/no]:");
-  // std::cin >> input_channel;
-  // std::transform(input_channel.begin(), input_channel.end(),
-  //                input_channel.begin(),
-  // [](unsigned char c) {
-  //   return std::tolower(c);  // correct
-  // });
-
-  // if (input_channel.find("y") != std::string::npos) {
-  //   isSingleChannel = true;
-  // }
-
-  // if (!ydlidar::os_isOk()) {
-  //   return 0;
-  // }
-
-  std::string input_frequency;
-
-  float frequency = 4.0;
-
-  // while (ydlidar::os_isOk() && !isSingleChannel) {
-  //   printf("Please enter the lidar scan frequency[5-12]:");
-  //   std::cin >> input_frequency;
-  //   frequency = atof(input_frequency.c_str());
-  //   if (frequency <= 12 && frequency >= 5.0) {
-  //     break;
-  //   }
-  //   fprintf(stderr,
-  //           "Invalid scan frequency,The scanning frequency range is 5 to 12 HZ, Please re-enter.\n");
-  // }
-
-  if (!ydlidar::os_isOk()) {
-    return 0;
-  }
+  float frequency = 8.0;
 
   CYdLidar laser;
   //////////////////////string property/////////////////
@@ -189,15 +159,14 @@ int main(int argc, char *argv[]) {
   ignore_array.clear();
   laser.setlidaropt(LidarPropIgnoreArray, ignore_array.c_str(),
                     ignore_array.size());
-
   //////////////////////int property/////////////////
   /// lidar baudrate
   laser.setlidaropt(LidarPropSerialBaudrate, &baudrate, sizeof(int));
-  /// tof lidar
-  int optval = TYPE_TRIANGLE;
+  /// gs lidar
+  int optval = TYPE_GS;
   laser.setlidaropt(LidarPropLidarType, &optval, sizeof(int));
-  /// device type
-  optval = YDLIDAR_TYPE_SERIAL;
+  /// device type (YDLIDAR_TYPE_TCP,YDLIDAR_TYPE_SERIAL)
+  optval = baudrate == baudrateList[0] ? YDLIDAR_TYPE_TCP : YDLIDAR_TYPE_SERIAL; 
   laser.setlidaropt(LidarPropDeviceType, &optval, sizeof(int));
   /// sample rate
   optval = isSingleChannel ? 3 : 4;
@@ -211,9 +180,8 @@ int main(int argc, char *argv[]) {
 
   //////////////////////bool property/////////////////
   /// fixed angle resolution
-  bool b_optvalue = true;
+  bool b_optvalue = false;
   laser.setlidaropt(LidarPropFixedResolution, &b_optvalue, sizeof(bool));
-  b_optvalue = false;
   /// rotate 180
   laser.setlidaropt(LidarPropReversion, &b_optvalue, sizeof(bool));
   /// Counterclockwise
@@ -226,66 +194,113 @@ int main(int argc, char *argv[]) {
   b_optvalue = true;
   laser.setlidaropt(LidarPropIntenstiy, &b_optvalue, sizeof(bool));
   /// Motor DTR
-  b_optvalue = false;
+  b_optvalue = true;
   laser.setlidaropt(LidarPropSupportMotorDtrCtrl, &b_optvalue, sizeof(bool));
   /// HeartBeat
   b_optvalue = false;
   laser.setlidaropt(LidarPropSupportHeartBeat, &b_optvalue, sizeof(bool));
 
   //////////////////////float property/////////////////
-  /// unit: °
+  // unit: °
   float f_optvalue = 180.0f;
   laser.setlidaropt(LidarPropMaxAngle, &f_optvalue, sizeof(float));
   f_optvalue = -180.0f;
   laser.setlidaropt(LidarPropMinAngle, &f_optvalue, sizeof(float));
-  /// unit: m
-  f_optvalue = 64.f;
+  // unit: m
+  f_optvalue = 1.f;
   laser.setlidaropt(LidarPropMaxRange, &f_optvalue, sizeof(float));
-  f_optvalue = 0.05f;
+  f_optvalue = 0.025f;
   laser.setlidaropt(LidarPropMinRange, &f_optvalue, sizeof(float));
-  /// unit: Hz
+  // unit: Hz
   laser.setlidaropt(LidarPropScanFrequency, &frequency, sizeof(float));
 
-  //禁用阳光玻璃过滤
-  laser.enableGlassNoise(false);
-  laser.enableSunNoise(false);
+  //是否启用调试
+  laser.setEnableDebug(true); 
 
+  //雷达初始化
   bool ret = laser.initialize();
-  if (!ret) {
+  if (!ret)
+  {
     fprintf(stderr, "Fail to initialize %s\n", laser.DescribeError());
     fflush(stderr);
     return -1;
   }
+  //设置雷达工作模式（0表示避障模式，1或2表示沿边模式，3表示固定12Hz避障模式（需要固件支持））
+  // ret &= laser.setWorkMode(3, 0x01);
+  // ret &= laser.setWorkMode(3, 0x02);
+  // ret &= laser.setWorkMode(3, 0x04);
+  // if (!ret)
+  // {
+  //   fprintf(stderr, "Fail to set work mode %s\n", laser.DescribeError());
+  //   fflush(stderr);
+  //   return -1;
+  // }
+  //获取级联雷达设备信息
+  // std::vector<device_info_ex> dis;
+  // ret = laser.getDeviceInfo(dis);
+  // if (!ret)
+  // {
+  //   fprintf(stderr, "Fail to get Device infomations %s\n", laser.DescribeError());
+  //   fflush(stderr);
+  //   return -1;
+  // }
+  // for (int i=0; i<dis.size(); ++i)
+  // {
+  //   const device_info_ex& di = dis.at(i);
+  //   printf("Device [%u]\n", di.id);
+  //   ydlidar::core::common::printfDeviceInfo(di.di, EPT_Module);
+  // }
 
+  //启动扫描
   ret = laser.turnOn();
-  if (!ret) {
-    fprintf(stderr, "Fail to start %s\n", laser.DescribeError());
+  if (!ret)
+  {
+    fprintf(stderr, "Fail to turn on %s\n", laser.DescribeError());
     fflush(stderr);
     return -1;
   }
 
   LaserScan scan;
-  while (ydlidar::os_isOk())
+  //拖尾滤波
+  StrongLightFilter filter;
+  filter.setStrategy(StrongLightFilter::FS_2); //设置策略为截距法
+  filter.setMaxDist(0.025); //设置最大截距为0.025米
+  //打印帧间隔相关
+  std::map<int, uint32_t> ts;
+  for (int i=0; i<LIDAR_MAXCOUNT; ++i)
+    ts[i] = getms();
+
+  while (ret && ydlidar::os_isOk())
   {
-      if (laser.doProcessSimple(scan))
-      {
-        printf("Scan received at [%lu] %u points is [%f]Hz\n",
-               scan.stamp / 1000000,
-               (unsigned int)scan.points.size(),
-               1.0 / scan.config.scan_time);
-        // for (size_t i = 0; i < scan.points.size(); ++i)
-        // {
-        //   const LaserPoint &p = scan.points.at(i);
-        //   printf("%d a %.01f r %.04f i %.0f\n", 
-        //     i, p.angle * 180.0 / M_PI, p.range, p.intensity);
-        // }
-        fflush(stdout);
-      }
+    if (laser.doProcessSimple(scan))
+    {
+      //printf("Module [%d] [%d] points in [%.02f]Hz\n",
+       // scan.moduleNum,
+       // int(scan.points.size()),
+       // scan.scanFreq);
+      //打印帧间隔
+      uint32_t t = getms();
+      uint32_t dt = t - ts[scan.moduleNum];
+      if (dt > 150)
+      	core::common::warn("module[%d] time[%lld]ms", scan.moduleNum, dt);
       else
-      {
-          fprintf(stderr, "Failed to get Lidar Data\n");
-          fflush(stderr);
-      }
+        core::common::info("module[%d] time[%lld]ms", scan.moduleNum, dt);
+      ts[scan.moduleNum] = t;
+      //滤波
+      //filter.filter(scan, 0, 0, scan);
+      //打印点云
+      // for (size_t i = 0; i < scan.points.size(); ++i)
+      // {
+      //   const LaserPoint &p = scan.points.at(i);
+      //     printf("%d a %.02f r %.01f\n", int(i), 
+      //       p.angle * 180.0f / M_PI, p.range * 1000.0f);
+      // }
+    }
+    else
+    {
+      fprintf(stderr, "Failed to get Lidar Data\n");
+      fflush(stderr);
+    }
   }
 
   laser.turnOff();

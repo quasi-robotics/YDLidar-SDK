@@ -32,6 +32,7 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************/
 #include <math.h>
+#include <algorithm>
 #include "SDMLidarDriver.h"
 #include "core/serial/common.h"
 #include "ydlidar_config.h"
@@ -92,13 +93,13 @@ SDMLidarDriver::~SDMLidarDriver()
 result_t SDMLidarDriver::connect(const char *port, uint32_t baudrate)
 {
     m_baudrate = baudrate;
-    serial_port = string(port);
+    m_port = string(port);
     {
         ScopedLocker l(_cmd_lock);
         if (!_serial)
         {
             _serial = new serial::Serial(
-                port,
+                m_port,
                 m_baudrate,
                 serial::Timeout::simpleTimeout(DEFAULT_TIMEOUT));
         }
@@ -240,7 +241,7 @@ result_t SDMLidarDriver::sendData(const uint8_t *data, size_t size)
         if (m_Debug)
         {
             printf("send: ");
-            printHex(data, r);
+            infoh(data, r);
         }
 
         size -= r;
@@ -265,8 +266,11 @@ result_t SDMLidarDriver::getData(uint8_t *data, size_t size)
         if (!r)
             return RESULT_FAIL;
 
-        // printf("recv: ");
-        // printHex(data, r);
+        if (m_Debug)
+        {
+            printf("recv: ");
+            infoh(data, r);
+        }
 
         size -= r;
         data += r;
@@ -275,15 +279,15 @@ result_t SDMLidarDriver::getData(uint8_t *data, size_t size)
     return RESULT_OK;
 }
 
-result_t SDMLidarDriver::waitRes(
+result_t SDMLidarDriver::waitResp(
     uint8_t cmd,
     uint32_t timeout)
 {
     std::vector<uint8_t> data;
-    return waitRes(cmd, data, timeout);
+    return waitResp(cmd, data, timeout);
 }
 
-result_t SDMLidarDriver::waitRes(
+result_t SDMLidarDriver::waitResp(
     uint8_t cmd,
     std::vector<uint8_t> &data,
     uint32_t timeout)
@@ -291,7 +295,7 @@ result_t SDMLidarDriver::waitRes(
     int pos = 0;
     uint32_t st = getms();
     uint32_t wt = 0;
-    std::vector<uint8_t> recvBuff(SDKSDMHEADSIZE, 0);
+    std::vector<uint8_t> recvBuff(SDK_BUFFER_MAXLEN, 0);
     SdkSdmHead head;
     uint8_t *buff = reinterpret_cast<uint8_t*>(&head);
     uint8_t cs = 0;
@@ -401,7 +405,6 @@ result_t SDMLidarDriver::checkAutoConnecting()
     {
         {
             ScopedLocker l(_cmd_lock);
-
             if (_serial)
             {
                 if (_serial->isOpen() || m_isConnected)
@@ -413,27 +416,25 @@ result_t SDMLidarDriver::checkAutoConnecting()
                 }
             }
         }
-        retryCount++;
-
-        if (retryCount > 100)
+        retryCount ++;
+        if (retryCount > 10)
         {
-            retryCount = 100;
+            retryCount = 10;
         }
 
         delay(100 * retryCount);
         int retryConnect = 0;
 
         while (isAutoReconnect &&
-                connect(serial_port.c_str(), m_baudrate) != RESULT_OK)
+            connect(m_port.c_str(), m_baudrate) != RESULT_OK)
         {
             retryConnect++;
-
-            if (retryConnect > 25)
+            if (retryConnect > 10)
             {
-                retryConnect = 25;
+                retryConnect = 10;
             }
 
-            delay(200 * retryConnect);
+            delay(100);
         }
 
         if (!isAutoReconnect)
@@ -446,7 +447,6 @@ result_t SDMLidarDriver::checkAutoConnecting()
         {
             delay(100);
             {
-                ScopedLocker l(_cmd_lock);
                 ans = startAutoScan();
                 if (!IS_OK(ans))
                 {
@@ -629,7 +629,7 @@ result_t SDMLidarDriver::waitPackage(node_info *node, uint32_t timeout)
 
     if (IS_OK(ret))
     {
-        (*node).sync = Node_Sync;
+        (*node).sync = NODE_SYNC;
         (*node).stamp = getTime();
         (*node).index = 0;
         (*node).scanFreq = m_ScanFreq;
@@ -757,7 +757,7 @@ result_t SDMLidarDriver::startScan(bool force, uint32_t timeout)
         //双通雷达才发送启动命令
         if (!m_SingleChannel)
         {
-            ret = waitRes(SDK_CMD_STARTSCAN, timeout);
+            ret = waitResp(SDK_CMD_STARTSCAN, timeout);
             if (!IS_OK(ret))
             {
                 printf("[YDLIDAR] Response to start scan error!\n");
@@ -784,7 +784,7 @@ result_t SDMLidarDriver::stopScan(uint32_t timeout)
     {
         return ans;
     }
-    if ((ans = waitRes(SDK_CMD_STOPSCAN, timeout)) != RESULT_OK)
+    if ((ans = waitResp(SDK_CMD_STOPSCAN, timeout)) != RESULT_OK)
     {
         return ans;
     }
@@ -833,7 +833,7 @@ result_t SDMLidarDriver::startAutoScan(bool force, uint32_t timeout)
         }
         if (!m_SingleChannel)
         {
-            if ((ans = waitRes(SDK_CMD_STARTSCAN, timeout)) != RESULT_OK)
+            if ((ans = waitResp(SDK_CMD_STARTSCAN, timeout)) != RESULT_OK)
             {
                 return ans;
             }
@@ -916,7 +916,7 @@ result_t SDMLidarDriver::setScanFreq(float sf, uint32_t timeout)
         return ret;
 
     std::vector<uint8_t> data;
-    ret = waitRes(SDK_CMD_SETFREQ, data, timeout);
+    ret = waitResp(SDK_CMD_SETFREQ, data, timeout);
     if (!IS_OK(ret))
         return ret;
     if (!data.size())
@@ -968,7 +968,7 @@ result_t SDMLidarDriver::getDeviceInfo(device_info &info, uint32_t timeout)
         return ret;
 
     std::vector<uint8_t> data;
-    if ((ret = waitRes(SDK_CMD_GETVERSION, data, timeout)) != RESULT_OK)
+    if ((ret = waitResp(SDK_CMD_GETVERSION, data, timeout)) != RESULT_OK)
         return ret;
 
     // printf("%s %llu\n", __FUNCTION__, data.size());

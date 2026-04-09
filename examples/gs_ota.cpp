@@ -1,36 +1,36 @@
 ﻿/*********************************************************************
-* Software License Agreement (BSD License)
-*
-*  Copyright (c) 2018, EAIBOT, Inc.
-*  All rights reserved.
-*
-*  Redistribution and use in source and binary forms, with or without
-*  modification, are permitted provided that the following conditions
-*  are met:
-*
-*   * Redistributions of source code must retain the above copyright
-*     notice, this list of conditions and the following disclaimer.
-*   * Redistributions in binary form must reproduce the above
-*     copyright notice, this list of conditions and the following
-*     disclaimer in the documentation and/or other materials provided
-*     with the distribution.
-*   * Neither the name of the Willow Garage nor the names of its
-*     contributors may be used to endorse or promote products derived
-*     from this software without specific prior written permission.
-*
-*  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-*  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-*  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-*  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-*  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-*  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-*  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-*  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-*  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-*  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-*  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
-*  POSSIBILITY OF SUCH DAMAGE.
-*********************************************************************/
+ * Software License Agreement (BSD License)
+ *
+ *  Copyright (c) 2018, EAIBOT, Inc.
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *   * Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *   * Redistributions in binary form must reproduce the above
+ *     copyright notice, this list of conditions and the following
+ *     disclaimer in the documentation and/or other materials provided
+ *     with the distribution.
+ *   * Neither the name of the Willow Garage nor the names of its
+ *     contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+ *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+ *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+ *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+ *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ *  POSSIBILITY OF SUCH DAMAGE.
+ *********************************************************************/
 
 #include <iostream>
 #include <string>
@@ -39,7 +39,6 @@
 #include <core/base/timer.h>
 #include "CYdLidar.h"
 #include "core/common/ydlidar_help.h"
-
 
 using namespace std;
 using namespace ydlidar;
@@ -63,7 +62,7 @@ using namespace ydlidar;
  * Step7: Uninitialize the SDK and Disconnect the LiDAR.(::CYdLidar::disconnecting)\n
  */
 
-int main(int argc, char *argv[]) 
+int main(int argc, char *argv[])
 {
   printf("__   ______  _     ___ ____    _    ____  \n");
   printf("\\ \\ / /  _ \\| |   |_ _|  _ \\  / \\  |  _ \\ \n");
@@ -80,33 +79,43 @@ int main(int argc, char *argv[])
 
   ports["IP1"] = "192.168.1.200";
 
-  if (ports.size() == 1) {
+  if (ports.size() == 1)
+  {
     port = ports.begin()->second;
-  } else {
+  }
+  else
+  {
     int id = 0;
 
-    for (it = ports.begin(); it != ports.end(); it++) {
+    for (it = ports.begin(); it != ports.end(); it++)
+    {
       printf("[%d] %s %s\n", id, it->first.c_str(), it->second.c_str());
       id++;
     }
 
-    if (ports.empty()) {
+    if (ports.empty())
+    {
       printf("Not Lidar was detected. Please enter the lidar serial port:");
       std::cin >> port;
-    } else {
-      while (ydlidar::os_isOk()) {
+    }
+    else
+    {
+      while (ydlidar::os_isOk())
+      {
         printf("Please select the lidar port:");
         std::string number;
         std::cin >> number;
 
-        if ((size_t)atoi(number.c_str()) >= ports.size()) {
+        if ((size_t)atoi(number.c_str()) >= ports.size())
+        {
           continue;
         }
 
         it = ports.begin();
         id = atoi(number.c_str());
 
-        while (id) {
+        while (id)
+        {
           id--;
           it++;
         }
@@ -119,21 +128,23 @@ int main(int argc, char *argv[])
 
   int baudrate = 921600;
   std::map<int, int> baudrateList;
-  baudrateList[0] = 8000; //网络端口
-  baudrateList[1] = 921600; //串口波特率
+  baudrateList[0] = 8000;   // 网络端口
+  baudrateList[1] = 921600; // 串口波特率
   printf("Baudrate:\n");
   for (std::map<int, int>::iterator it = baudrateList.begin();
-       it != baudrateList.end(); it++) {
+       it != baudrateList.end(); it++)
+  {
     printf("[%d] %d\n", it->first, it->second);
   }
 
-  while (ydlidar::os_isOk()) 
+  while (ydlidar::os_isOk())
   {
     printf("Please select the lidar baudrate:");
     std::string number;
     std::cin >> number;
 
-    if ((size_t)atoi(number.c_str()) > baudrateList.size()) {
+    if ((size_t)atoi(number.c_str()) > baudrateList.size())
+    {
       continue;
     }
 
@@ -141,7 +152,8 @@ int main(int argc, char *argv[])
     break;
   }
 
-  if (!ydlidar::os_isOk()) {
+  if (!ydlidar::os_isOk())
+  {
     return 0;
   }
 
@@ -164,7 +176,7 @@ int main(int argc, char *argv[])
   int optval = TYPE_GS;
   laser.setlidaropt(LidarPropLidarType, &optval, sizeof(int));
   /// device type (YDLIDAR_TYPE_TCP,YDLIDAR_TYPE_SERIAL)
-  optval = baudrate == baudrateList[0] ? YDLIDAR_TYPE_TCP : YDLIDAR_TYPE_SERIAL; 
+  optval = baudrate == baudrateList[0] ? YDLIDAR_TYPE_TCP : YDLIDAR_TYPE_SERIAL;
   laser.setlidaropt(LidarPropDeviceType, &optval, sizeof(int));
   /// sample rate
   optval = isSingleChannel ? 3 : 4;
@@ -212,7 +224,12 @@ int main(int argc, char *argv[])
   /// unit: Hz
   laser.setlidaropt(LidarPropScanFrequency, &frequency, sizeof(float));
 
-  //雷达初始化
+  //设置OTA文件路径
+  laser.setOtaFile("./EAI_GS2_SCM_GD32_APP_031_1_20221111.bin");
+  //启用加密
+  laser.setOtaEncode(true);
+
+  // 雷达初始化
   bool ret = laser.initialize();
   if (!ret)
   {
@@ -220,76 +237,15 @@ int main(int argc, char *argv[])
     fflush(stderr);
     return -1;
   }
-  //设置雷达工作模式（0表示避障模式，1表示沿边模式）
-  // ret &= laser.setWorkMode(0, 0x01);
-  // ret &= laser.setWorkMode(0, 0x02);
-  // ret &= laser.setWorkMode(1, 0x04);
-  // if (!ret)
-  // {
-  //   fprintf(stderr, "Fail to set work mode %s\n", laser.DescribeError());
-  //   fflush(stderr);
-  //   return -1;
-  // }
-  //获取级联雷达设备信息
-  // std::vector<device_info_ex> dis;
-  // ret = laser.getDeviceInfo(dis);
-  // if (!ret)
-  // {
-  //   fprintf(stderr, "Fail to get Device infomations %s\n", laser.DescribeError());
-  //   fflush(stderr);
-  //   return -1;
-  // }
-  // for (int i=0; i<dis.size(); ++i)
-  // {
-  //   const device_info_ex& di = dis.at(i);
-  //   printf("Device [%u]\n", di.id);
-  //   ydlidar::core::common::printfDeviceInfo(di.di, EPT_Module);
-  // }
 
-  //启动扫描
-  ret = laser.turnOn();
-  if (!ret)
+  //开始OTA升级
+  if (!laser.ota())
   {
-    fprintf(stderr, "Fail to turn on %s\n", laser.DescribeError());
+    fprintf(stderr, "Fail to ota\n");
     fflush(stderr);
     return -1;
   }
 
-  LaserScan scan;
-  //打印帧间隔
-  // std::map<int, uint32_t> ts;
-  // ts[0] = getms();
-  // ts[1] = getms();
-  // ts[2] = getms();
-
-  while (ret && ydlidar::os_isOk())
-  {
-    if (laser.doProcessSimple(scan))
-    {
-      printf("[%llu] points in module num [%d] env flag [0x%04X]\n",
-             scan.points.size(),
-             scan.moduleNum,
-             scan.envFlag);
-      // uint32_t t = getms();
-      // printf("module[%d] time[%lld]\n", scan.moduleNum, t - ts[scan.moduleNum]);
-      // ts[scan.moduleNum] = t;
-
-      // for (size_t i = 0; i < scan.points.size(); ++i)
-      // {
-      //   const LaserPoint &p = scan.points.at(i);
-      //   printf("%lu a %.01f r %.01f\n", i, p.angle * 180.0f / M_PI, p.range * 1000.0f);
-      // }
-      fflush(stdout);
-    }
-    else
-    {
-      fprintf(stderr, "Failed to get Lidar Data\n");
-      fflush(stderr);
-    }
-  }
-
-  laser.turnOff();
   laser.disconnecting();
-
   return 0;
 }

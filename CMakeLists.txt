@@ -4,8 +4,8 @@ project(ydlidar_sdk C CXX)
 #########################################################
 # version
 set(YDLIDAR_SDK_VERSION_MAJOR 1)
-set(YDLIDAR_SDK_VERSION_MINOR 1)
-set(YDLIDAR_SDK_VERSION_PATCH 17)
+set(YDLIDAR_SDK_VERSION_MINOR 2)
+set(YDLIDAR_SDK_VERSION_PATCH 19)
 set(YDLIDAR_SDK_VERSION ${YDLIDAR_SDK_VERSION_MAJOR}.${YDLIDAR_SDK_VERSION_MINOR}.${YDLIDAR_SDK_VERSION_PATCH})
 
 ##########################################################
@@ -16,7 +16,7 @@ ELSE()
 	SET(CMAKE_MRPT_WORD_SIZE 32)
 ENDIF()
 ##################################################
-#c++ 11
+# Add c++11 Flag
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
 
 ##########################################################
@@ -26,7 +26,15 @@ IF (CMAKE_SYSTEM_NAME MATCHES "Linux")
 	add_compile_options(-fPIC)
 ELSEIF (CMAKE_SYSTEM_NAME MATCHES "Windows")
     MESSAGE(STATUS "Current platform: Windows")
+	MESSAGE(STATUS "Current compiler: ${CMAKE_CXX_COMPILER_ID}")
+	IF (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+	#MSVC compiler
 	add_compile_options("/utf-8")
+	add_definitions(-DWIN32_LEAN_AND_MEAN)
+    add_definitions(-DNOMINMAX)
+	ELSEIF (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+	#MinGW compiler
+	ENDIF (CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
 ENDIF (CMAKE_SYSTEM_NAME MATCHES "Linux")
 #or
 #set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -62,13 +70,13 @@ endif()
 option( BUILD_SHARED_LIBS "Build shared libraries." OFF)
 option( BUILD_EXAMPLES "Build Example." ON)
 option( BUILD_CSHARP "Build CSharp." OFF)
-option( BUILD_TEST "Build Test." ON)
+option( BUILD_TEST "Build Test." OFF)
 
 ############################################################################
 # find package
-FIND_PACKAGE(SWIG)
+find_package(SWIG)
 find_package(PythonInterp)
-FIND_PACKAGE(PythonLibs)
+find_package(PythonLibs)
 find_package(GTest)
 
 ############################################################################
@@ -85,7 +93,7 @@ add_subdirectory(src)
 ##############################
 #build examples
 if(BUILD_EXAMPLES)
-add_subdirectory(samples)
+add_subdirectory(examples)
 endif()
 
 #############################################################################

@@ -40,10 +40,9 @@
 *                                                                            *
 *********************************************************************/
 #pragma once
+#include "DriverInterface.h"
 #include <sstream>
 #include <iomanip>
-#include <stdarg.h>
-#include "DriverInterface.h"
 
 /**
  * @brief ydlidar
@@ -59,116 +58,6 @@ using namespace base;
  */
 namespace common {
 
-//颜色定义
-#ifndef COLOR
-    #define COLOFF  "\033[0m"      ///关闭所有属性
-    #define RED      "\033[0;31m"   ///"\033[显示方式;字体颜色;背景颜色m"
-    #define GREEN    "\033[0;32m"
-    #define YELLOW   "\033[0;33m"
-    #define BLUE     "\033[0;34m"
-    #define PURPLE   "\033[0;35m"
-#endif
-
-//打印系统时间
-#define UNIX_PRINT_TIME  \
-  time_t currentTime = time(NULL); \
-  struct tm *localTime = localtime(&currentTime); \
-  printf("[%04d-%02d-%02d %02d:%02d:%02d]", \
-    (1900 + localTime->tm_year), \
-    (1 + localTime->tm_mon), \
-    localTime->tm_mday, \
-    localTime->tm_hour, \
-    localTime->tm_min, \
-    localTime->tm_sec);
-#define WIN_PRINT_TIME UNIX_PRINT_TIME
-#ifdef _WIN32
-  #define PRINT_TIME WIN_PRINT_TIME
-#else
-  #define PRINT_TIME UNIX_PRINT_TIME
-#endif
-//格式化字符串
-#define FORMAT_STDOUT \
-  char buff[1024] = {0}; \
-  va_list ap; \
-  va_start(ap, fmt); \
-  vsprintf(buff, fmt, ap); \
-  va_end(ap); \
-  printf(buff); \
-  printf("\n");
-
-//调试
-inline void debug(char* fmt, ...)
-{
-  printf(GREEN); //设置绿色
-  PRINT_TIME
-  printf("[debug] ");
-  FORMAT_STDOUT
-  printf(COLOFF); //恢复默认颜色
-  fflush(stdout);
-}
-
-//常规
-inline void info(char* fmt, ...)
-{
-  PRINT_TIME
-  printf("[info] ");
-  FORMAT_STDOUT
-  fflush(stdout);
-}
-
-//警告
-inline void warn(char* fmt, ...)
-{
-  printf(YELLOW); //设置黄色
-  PRINT_TIME
-  printf("[warn] ");
-  FORMAT_STDOUT
-  printf(COLOFF); //恢复默认颜色
-  fflush(stdout);
-}
-
-//错误
-inline void error(char* fmt, ...)
-{
-  printf(RED); //设置红色
-  PRINT_TIME
-  printf("[error] ");
-  FORMAT_STDOUT
-  printf(COLOFF); //恢复默认颜色
-  fflush(stdout);
-}
-
-//调试（16进制）
-inline void debugh(const uint8_t *data, int size, const char* prefix=NULL)
-{
-  if (!data || !size)
-    return;
-  printf(GREEN); //设置绿色
-  PRINT_TIME
-  printf("[debug] ");
-  if (prefix)
-      printf(prefix);
-  for (int i=0; i<size; ++i)
-      printf("%02X", data[i]);
-  printf("\n");
-  printf(COLOFF); //恢复默认颜色
-  fflush(stdout);
-}
-
-//常规（16进制）
-inline void infoh(const uint8_t *data, int size, const char* prefix=NULL)
-{
-  if (!data || !size)
-      return;
-  PRINT_TIME
-  printf("[info] ");
-  if (prefix)
-      printf(prefix);
-  for (int i=0; i<size; ++i)
-      printf("%02X", data[i]);
-  printf("\n");
-  fflush(stdout);
-}
 
 /*!
  * @brief convert lidar model to string
@@ -245,20 +134,11 @@ inline std::string lidarModelToString(int model)
   case DriverInterface::YDLIDAR_G7:
     name = "G7";
     break;
-  case DriverInterface::YDLIDAR_SCL:
-    name = "SCL";
-    break;
-  case DriverInterface::YDLIDAR_R3:
-    name = "R3";
-    break;
   case DriverInterface::YDLIDAR_GS1:
     name = "GS1";
     break;
   case DriverInterface::YDLIDAR_GS2:
     name = "GS2";
-    break;
-  case DriverInterface::YDLIDAR_GS5:
-    name = "GS5";
     break;
   case DriverInterface::YDLIDAR_TG15:
     name = "TG15";
@@ -275,23 +155,17 @@ inline std::string lidarModelToString(int model)
   case DriverInterface::YDLIDAR_TSA:
     name = "TSA";
     break;
-  case DriverInterface::YDLIDAR_TSAPro:
-    name = "TSA Pro";
-    break;
   case DriverInterface::YDLIDAR_Tmini:
-    return "Tmini";
-  case DriverInterface::YDLIDAR_TminiPro:
-    return "Tmini Pro";
-  case DriverInterface::YDLIDAR_TminiPlus:
-    return "Tmini Plus";
-  case DriverInterface::YDLIDAR_TminiPlusSH:
-    return "Tmini Plus SH";
+    name = "T-mini";
+    break;
+  case DriverInterface::YDLIDAR_TminiPRO:
+    name = "T-mini Pro";
+    break;
   case DriverInterface::YDLIDAR_T15:
-    return "T15";
+    name = "T15";
+    break;
   case DriverInterface::YDLIDAR_SDM15:
     return "SDM15";
-  case DriverInterface::YDLIDAR_SDM18:
-    return "SDM18";
   default:
     name = "unkown(YD-" + std::to_string(model) + ")";
     break;
@@ -405,13 +279,11 @@ inline bool isOctaveLidar(int model)
   return ret;
 }
 
-//根据雷达码判断是否是Tmini系列雷达
+//根据雷达码判断是否是Tmini雷达
 inline bool isTminiLidar(int model)
 {
   return (model == DriverInterface::YDLIDAR_Tmini ||
-          model == DriverInterface::YDLIDAR_TminiPro ||
-          model == DriverInterface::YDLIDAR_TminiPlus ||
-          model == DriverInterface::YDLIDAR_TSAPro);
+          model == DriverInterface::YDLIDAR_TminiPRO);
 }
 
 //根据雷达码判断是否是SCL雷达
@@ -439,7 +311,7 @@ inline bool hasSampleRate(int model)
       model == DriverInterface::YDLIDAR_G5 ||
       model == DriverInterface::YDLIDAR_G4PRO ||
       model == DriverInterface::YDLIDAR_F4PRO ||
-      // model == DriverInterface::YDLIDAR_G6 ||
+      model == DriverInterface::YDLIDAR_G6 ||
       model == DriverInterface::YDLIDAR_G7 ||
       model == DriverInterface::YDLIDAR_TG15 ||
       model == DriverInterface::YDLIDAR_TG50 ||
@@ -450,21 +322,12 @@ inline bool hasSampleRate(int model)
 
   return ret;
 }
-
-inline bool isR3Lidar(int model)
-{
-  if (model == DriverInterface::YDLIDAR_R3)
-  {
-      return true;
-  }
-  return false;
-}
-
 /*!
  * @brief Is there a zero offset angle
  * @param model   lidar model
  * @return true if there are zero offset angle, otherwise false.
  */
+
 inline bool hasZeroAngle(int model) {
   bool ret = false;
 
@@ -488,8 +351,7 @@ inline bool hasZeroAngle(int model) {
  * @param model   lidar model
  * @return true if supported, otherwise false.
  */
-inline bool hasScanFrequencyCtrl(int model) 
-{
+inline bool hasScanFrequencyCtrl(int model) {
   bool ret = true;
 
   if (model == DriverInterface::YDLIDAR_S4 ||
@@ -498,8 +360,8 @@ inline bool hasScanFrequencyCtrl(int model)
       model == DriverInterface::YDLIDAR_X4 ||
       model == DriverInterface::YDLIDAR_GS1 ||
       model == DriverInterface::YDLIDAR_GS2 ||
-      model == DriverInterface::YDLIDAR_GS5) 
-  {
+      model == DriverInterface::YDLIDAR_Tmini ||
+      model == DriverInterface::YDLIDAR_TminiPRO) {
     ret = false;
   }
 
@@ -591,13 +453,6 @@ inline bool isSupportScanFrequency(int model, double frequency)
     else if (model == DriverInterface::YDLIDAR_TEA)
     {
       if (10 <= frequency && frequency <= 30)
-      {
-        ret = true;
-      }
-    }
-    else if (model == DriverInterface::YDLIDAR_Tmini)
-    {
-      if (5 <= frequency && frequency <= 12)
       {
         ret = true;
       }
@@ -716,16 +571,6 @@ inline bool isSDMLidar(int type)
   return (type == TYPE_SDM);
 }
 
-inline bool isDTSLidar(int type)
-{
-  return (type == TYPE_SDM18);
-}
-
-inline bool isTIALidar(int type)
-{
-  return (type == TYPE_TIA);
-}
-
 /**
  * @brief Whether it is Old Version protocol TOF LiDAR
  * @param model     lidar model
@@ -809,11 +654,11 @@ inline bool isValidSampleRate(std::map<int, int> smap)
  * @return  LiDAR sampling rate code
  */
 inline int ConvertUserToLidarSmaple(int model,
-                                    int sampleRate,
+                                    int m_SampleRate,
                                     int defaultRate)
 {
   int _samp_rate = 9;
-  switch (sampleRate) 
+  switch (m_SampleRate) 
   {
     case 10:
       _samp_rate = DriverInterface::YDLIDAR_RATE_4K;
@@ -835,7 +680,7 @@ inline int ConvertUserToLidarSmaple(int model,
   if (!isOctaveLidar(model)) 
   {
     _samp_rate = 2;
-    switch (sampleRate) 
+    switch (m_SampleRate) 
     {
       case 4:
         _samp_rate = DriverInterface::YDLIDAR_RATE_4K;
@@ -852,7 +697,7 @@ inline int ConvertUserToLidarSmaple(int model,
     if (model == DriverInterface::YDLIDAR_F4PRO) 
     {
       _samp_rate = 0;
-      switch (sampleRate) 
+      switch (m_SampleRate) 
       {
         case 4:
           _samp_rate = DriverInterface::YDLIDAR_RATE_4K;
@@ -1107,22 +952,21 @@ YDLIDAR_API inline bool printfDeviceInfo(const device_info &di,
 
   uint8_t Major = (uint8_t)(di.firmware_version >> 8);
   uint8_t Minjor = (uint8_t)(di.firmware_version & 0xff);
-  std::string sn;
-    for (int i = 0; i < SDK_SNLEN; i++)
-      sn += char(di.serialnum[i] + 48); //整型值转字符值
-    // printf("%01X", di.serialnum[i] & 0xff);
   
-  info("%s device info\n"
+  printf("[YDLIDAR] %s device info\n"
          "Firmware version: %u.%u\n"
          "Hardware version: %u\n"
          "Model: %s\n"
-         "Serial: %s",
+         "Serial: ",
          EPT_Module == platformType ? "Module" : "Baseplate",
          Major,
          Minjor,
          di.hardware_version,
-         lidarModelToString(di.model).c_str(),
-         sn.c_str());
+         lidarModelToString(di.model).c_str());
+  for (int i = 0; i < SDK_SNLEN; i++)
+    printf("%01X", di.serialnum[i] & 0xff);
+  printf("\n");
+  fflush(stdout);
 
   return true;
 }
@@ -1150,34 +994,22 @@ inline std::vector<float> split(const std::string &s, char delim) {
  * @param protocol LiDAR Protocol Byte information
  * @return true if it is V1, otherwise false
  */
-inline bool isV1Protocol(uint8_t protocol)
-{
+inline bool isV1Protocol(uint8_t protocol) {
   if (protocol == Protocol_V1) {
     return true;
   }
+
   return false;
 }
 
-//获取数据值（小端序）
-inline uint32_t getLittleValue(const uint8_t *data, int size)
+//以16进制打印数据
+inline void printHex(const uint8_t *data, int size)
 {
-  uint32_t v = 0;
-  if (!data || !size)
-    return v;
-  for (int i=0; i<size; ++i)
-    v += uint32_t(data[i] << (i * 8));
-  return v;
-}
-
-//获取数据值（大端序）
-inline uint32_t getBigValue(const uint8_t *data, int size)
-{
-  uint32_t v = 0;
-  if (!data || !size)
-    return v;
-  for (int i=0; i<size; ++i)
-    v += uint32_t(data[i] << ((size - 1 - i) * 8));
-  return v;
+    if (!data)
+        return;
+    for (int i=0; i<size; ++i)
+        printf("%02X", data[i]);
+    printf("\n");
 }
 
 }//common

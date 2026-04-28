@@ -28,18 +28,18 @@
 #define NOMINMAX
 #endif
 
+#include <core/network/PassiveSocket.h>
+#include "ETLidarDriver.h"
 #include <stdio.h>
 /*Socket Specific headers */
 #include <errno.h>
+#include <core/serial/common.h>
+#include <core/math/angles.h>
 #include <math.h>
 #include <algorithm>
-#include "ETLidarDriver.h"
-#include "core/network/PassiveSocket.h"
-#include "core/serial/common.h"
-#include "core/math/angles.h"
-#include "ydlidar_config.h"
-
+#include <ydlidar_config.h>
 using namespace impl;
+
 using namespace ydlidar;
 using namespace ydlidar::core;
 using namespace ydlidar::core::network;
@@ -50,7 +50,7 @@ using namespace ydlidar::core::base;
 // port defaults to 9000 if not provided.
 ETLidarDriver::ETLidarDriver() :
   offset_len(0),
-  port(9000),
+  m_port(9000),
   m_sampleRate(20000),
   m_force_update(false) {
 
@@ -72,7 +72,7 @@ ETLidarDriver::ETLidarDriver() :
 
   m_isScanning = false;
   m_isConnected = false;
-  m_port = "192.168.0.11";
+  serial_port = "192.168.0.11";
   m_baudrate = 8000;
   m_config.motor_rpm = 1200;
   m_config.laserScanFrequency = 50;
@@ -120,11 +120,11 @@ void ETLidarDriver::updateScanCfg(const lidarConfig &config) {
 }
 
 result_t ETLidarDriver::connect(const char *port_path, uint32_t baudrate) {
-  m_port = port_path;
+  serial_port = port_path;
   m_baudrate = baudrate;
   m_isConnected = false;
 
-  if (!configPortConnect(m_port.c_str(), port)) {
+  if (!configPortConnect(serial_port.c_str(), m_port)) {
     setDriverError(NotOpenError);
     m_isValidDevice = false;
     return RESULT_FAIL;
@@ -369,7 +369,7 @@ char *ETLidarDriver::configMessage(const char *descriptor, char *value) {
 bool ETLidarDriver::startMeasure() {
   bool ret;
 
-  if (!configPortConnect(m_port.c_str(), port)) {
+  if (!configPortConnect(serial_port.c_str(), m_port)) {
     return  false;
   }
 
@@ -381,7 +381,7 @@ bool ETLidarDriver::startMeasure() {
 }
 
 bool ETLidarDriver::stopMeasure() {
-  if (!configPortConnect(m_port.c_str(), port)) {
+  if (!configPortConnect(serial_port.c_str(), m_port)) {
     return  false;
   }
 
@@ -402,12 +402,12 @@ bool ETLidarDriver::getScanCfg(lidarConfig &config,
   bool ret = true;
 
   if (!ip_address.empty()) {
-    m_port = ip_address;
+    serial_port = ip_address;
   }
 
   lidarConfig cfg;
 
-  if (!configPortConnect(m_port.c_str(), port)) {
+  if (!configPortConnect(serial_port.c_str(), m_port)) {
     config = m_config;
     ret = false;
     return  ret;
@@ -552,7 +552,7 @@ bool ETLidarDriver::getScanCfg(lidarConfig &config,
 void ETLidarDriver::setScanCfg(const lidarConfig &config) {
   char str[32];
 
-  if (!configPortConnect(m_port.c_str(), port)) {
+  if (!configPortConnect(serial_port.c_str(), m_port)) {
     return ;
   }
 
@@ -678,7 +678,7 @@ result_t ETLidarDriver::getScanFrequency(scan_frequency &frequency,
   lidarConfig cfg;
   result_t  ans = RESULT_FAIL;
 
-  if (!configPortConnect(m_port.c_str(), port)) {
+  if (!configPortConnect(serial_port.c_str(), m_port)) {
     return  RESULT_FAIL;
   }
 
@@ -700,7 +700,7 @@ result_t ETLidarDriver::setScanFrequencyAdd(scan_frequency &frequency,
   result_t  ans = RESULT_FAIL;
   char str[32];
 
-  if (!configPortConnect(m_port.c_str(), port)) {
+  if (!configPortConnect(serial_port.c_str(), m_port)) {
     return ans;
   }
 
@@ -736,7 +736,7 @@ result_t ETLidarDriver::setScanFrequencyDis(scan_frequency &frequency,
   result_t  ans = RESULT_FAIL;
   char str[32];
 
-  if (!configPortConnect(m_port.c_str(), port)) {
+  if (!configPortConnect(serial_port.c_str(), m_port)) {
     return ans;
   }
 
@@ -771,7 +771,7 @@ result_t ETLidarDriver::setScanFrequencyAddMic(scan_frequency &frequency,
   result_t  ans = RESULT_FAIL;
   char str[32];
 
-  if (!configPortConnect(m_port.c_str(), port)) {
+  if (!configPortConnect(serial_port.c_str(), m_port)) {
     return ans;
   }
 
@@ -808,7 +808,7 @@ result_t ETLidarDriver::setScanFrequencyDisMic(scan_frequency &frequency,
   result_t  ans = RESULT_FAIL;
   char str[32];
 
-  if (!configPortConnect(m_port.c_str(), port)) {
+  if (!configPortConnect(serial_port.c_str(), m_port)) {
     return ans;
   }
 
@@ -842,7 +842,7 @@ result_t ETLidarDriver::getSamplingRate(sampling_rate &rate, uint32_t timeout) {
   lidarConfig cfg;
   result_t  ans = RESULT_FAIL;
 
-  if (!configPortConnect(m_port.c_str(), port)) {
+  if (!configPortConnect(serial_port.c_str(), m_port)) {
     return ans;
   }
 
@@ -944,7 +944,7 @@ result_t ETLidarDriver::checkAutoConnecting() {
     int retryConnect = 0;
 
     while (isAutoReconnect &&
-           connect(m_port.c_str(), m_baudrate) != RESULT_OK) {
+           connect(serial_port.c_str(), m_baudrate) != RESULT_OK) {
       retryConnect++;
 
       if (retryConnect > 25) {
@@ -1043,7 +1043,7 @@ int ETLidarDriver::cacheScanData() {
 
           if (IS_OK(ans)) {
             timeout_count = 0;
-            local_scan[0].sync = NODE_UNSYNC;
+            local_scan[0].sync = Node_NotSync;
           } else {
             m_isScanning = false;
             return RESULT_FAIL;
@@ -1051,7 +1051,7 @@ int ETLidarDriver::cacheScanData() {
         }
       } else {
         timeout_count++;
-        local_scan[0].sync = NODE_UNSYNC;
+        local_scan[0].sync = Node_NotSync;
 
         if (m_driverErrno == NoError) {
           setDriverError(TimeoutError);
@@ -1152,7 +1152,7 @@ result_t ETLidarDriver::waitPackage(node_info *node, uint32_t timeout) {
     }
   }
 
-  (*node).sync =  NODE_UNSYNC;
+  (*node).sync =  Node_NotSync;
   (*node).scanFreq = 0;
   (*node).debugInfo = 0xff;
   (*node).index = 0xff;
@@ -1192,7 +1192,7 @@ result_t ETLidarDriver::waitPackage(node_info *node, uint32_t timeout) {
   nodeIndex++;
 
   if (nodeIndex >= frame.dataNum) {
-    (*node).sync = frame.headFrameFlag ? NODE_SYNC : NODE_UNSYNC;
+    (*node).sync = frame.headFrameFlag ? Node_Sync : Node_NotSync;
     (*node).stamp = getTime();//(uint64_t)(frame.timestamp * 100);
     (*node).delayTime = 0;
     nodeIndex = 0;

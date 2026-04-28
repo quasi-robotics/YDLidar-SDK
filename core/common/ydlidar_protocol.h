@@ -41,17 +41,36 @@
 #define _countof(_Array) (int)(sizeof(_Array) / sizeof(_Array[0]))
 #endif
 
+/**
+ * @name PI constant
+ * @{
+ */
 #ifndef M_PI
 #define M_PI 3.1415926
 #endif
+/** @}
+*/
 
-//浮点型判断是否为0
-#define ISZERO(v) (abs(v) < 1e-12)
+/**
+ * @name sun noise flag constant
+ * @{
+ */
+#define SUNNOISEINTENSITY 0x03
+/** @}
+*/
 
-#define SUNNOISEINTENSITY 0x03 //sun noise flag constant
-#define GLASSNOISEINTENSITY 0x02 //glass noise flag constant
+/**
+ * @name glass noise flag constant
+ * @{
+ */
+#define GLASSNOISEINTENSITY 0x02
+/** @}
+*/
 
-//LIDAR CMD Protocol
+/**@name LIDAR CMD Protocol
+* @brief LiDAR request and response CMD
+* @{
+*/
 #define LIDAR_CMD_STOP                      0x65
 #define LIDAR_CMD_SCAN                      0x60
 #define LIDAR_CMD_FORCE_SCAN                0x61
@@ -60,21 +79,19 @@
 #define LIDAR_CMD_GET_EAI                   0x55
 #define LIDAR_CMD_GET_DEVICE_INFO           0x90
 #define LIDAR_CMD_GET_DEVICE_HEALTH         0x92
+#define LIDAR_ANS_TYPE_DEVINFO              0x4
+#define LIDAR_ANS_TYPE_DEVHEALTH            0x6
 #define LIDAR_CMD_SYNC_BYTE                 0xA5
 #define LIDAR_CMDFLAG_HAS_PAYLOAD           0x80
+#define LIDAR_ANS_SYNC_BYTE1                0xA5
+#define LIDAR_ANS_SYNC_BYTE2                0x5A
+#define LIDAR_ANS_TYPE_MEASUREMENT          0x81
 #define LIDAR_RESP_SYNCBIT        (0x1<<0)
 #define LIDAR_RESP_QUALITY_SHIFT  2
 #define LIDAR_RESP_CHECKBIT       (0x1<<0)
 #define LIDAR_RESP_ANGLE_SHIFT    1
 #define LIDAR_RESP_DIST_SHIFT  2
 #define LIDAR_RESP_ANGLE_SAMPLE_SHIFT 8
-
-#define LIDAR_ANS_SYNC_BYTE1                0xA5
-#define LIDAR_ANS_SYNC_BYTE2                0x5A
-#define LIDAR_ANS_TYPE_DEVINFO              0x04
-#define LIDAR_ANS_TYPE_DEVHEALTH            0x06
-#define LIDAR_ANS_TYPE_PITCH                0x10
-#define LIDAR_ANS_TYPE_MEASUREMENT          0x81
 
 #define LIDAR_CMD_RUN_POSITIVE             0x06
 #define LIDAR_CMD_RUN_INVERSION            0x07
@@ -103,7 +120,6 @@
 #define LIDAR_CMD_DIS_EXPOSURE       	    0x97
 
 #define LIDAR_CMD_SET_HEART_BEAT            0xD9
-#define LIDAR_CMD_GETPITCH 0x98 //获取俯仰角
 
 //GS命令
 #define GS_LIDAR_CMD_GET_ADDRESS               0x60
@@ -117,62 +133,24 @@
 #define GS_LIDAR_CMD_SET_MODE                  0x69
 #define GS_LIDAR_CMD_SET_BIAS                  0xD9
 #define GS_LIDAR_CMD_SET_DEBUG_MODE            0xF0
+
+/** @} LIDAR CMD Protocol */
+
 //GS
-#define Angle_Px 1.22
-#define Angle_Py 5.315
-#define Angle_PAngle 22.5 //GS2
-#define Angle_PAngle2 16.0 //GS5
-#define GS_PACKHEADSIZE 8
-#define GS_PACKMAXNODES 160 //GS数据包中最大点云数
+#define Angle_Px   1.22
+#define Angle_Py   5.315
+#define Angle_PAngle   22.5
+#define PackageMaxModuleNums  0x03
+#define GS_MAXPOINTS 160  //GS2固定160个点
+#define MaxPointsPerPackge_GS1 216  //GS1固定216个点
+#define PackagePaidBytes_GS 8
+#define NORMAL_PACKAGE_SIZE 331
+
+/// Maximuum number of samples in a packet
+#define PackageSampleMaxLngth 0x100
+#define MaximumNumberOfPackages 765 //= 255 * 3
 
 #define SDK_SNLEN 16 //序列号长度
-
-/// Default Node Quality
-#define Node_Default_Quality (10)
-/// Starting Node
-#define NODE_SYNC 1
-/// Normal Node
-#define NODE_UNSYNC 2
-/// Package Header
-#define PH 0x55AA
-#define PH1 0xAA
-#define PH2 0x55 //AA55是点云数据
-#define PH3 0x66 //AA66是时间戳数据
-
-//Package
-#define TRI_PACKHEADSIZE 10
-#define TRI_PACKMAXNODES 80 //单包最大点数（G4最大点数为80，其它三角等最大均为40）
-#define TIA_PACKWIDTH 12 //TIA单包行数
-#define TIA_PACKHEIGHT 16 //TIA单包行数
-#define TIA_PACKMAXBUFFS (TIA_PACKWIDTH * (4 + TIA_PACKHEIGHT * 4) + 4 + 4) //TIA-H单包最大字节数
-#define TIA_PACKMAXBUFFS2 (TIA_PACKMAXBUFFS + 4) //TIA单包最大字节数
-#define TIA_PACKMAXNODES (TIA_PACKWIDTH * TIA_PACKHEIGHT) //TIA单包最大点数
-
-//模组地址
-#define LIDAR_MODULE_1 0x01
-#define LIDAR_MODULE_2 0x02
-#define LIDAR_MODULE_3 0x04
-#define LIDAR_MODULE_ALL 0x00
-#define LIDAR_MAXCOUNT 3 //最大模组数
-#define LIDAR_PACKMAXNODES TRI_PACKMAXNODES //单包最大点数
-#define LIDAR_MAXNODES 5000 //最大点数
-
-#define FREINDEX 0
-#define USERVERSIONNDEX 1
-#define HEALTHINDEX 3
-
-//超时定义
-#define TIMEOUT_100 100
-#define TIMEOUT_300 300
-#define TIMEOUT_500 500 //500ms
-#define TIMEOUT_1S 1000
-#define TIMEOUT_2S 2000
-#define SDK_TIMEOUT TIMEOUT_1S //默认超时时间
-//角度定义
-#define SDK_ANGLE360 360.0f
-#define SDK_ANGLE180 180.0f
-#define SDK_ANGLE90 90.0f
-#define SDK_ANGLE0 0.0f
 
 /// CT Package Type
 typedef enum {
@@ -180,6 +158,29 @@ typedef enum {
   CT_RingStart  = 1,///< Starting package
   CT_Tail,
 } CT;
+
+/// Default Node Quality
+#define Node_Default_Quality (10)
+/// Starting Node
+#define Node_Sync 1
+/// Normal Node
+#define Node_NotSync 2
+/// Package Header Size
+#define PackagePaidBytes 10
+/// Package Header
+#define PH 0x55AA
+#define PH1 0xAA
+#define PH2 0x55 //AA55是点云数据
+#define PH3 0x66 //AA66是时间戳数据
+
+/// Normal Package size
+#define TrianglePackageDataSize 40
+/// TOF Normal package size
+#define TOFPackageDataSize 80
+
+#define FREINDEX 0
+#define USERVERSIONNDEX 1
+#define HEALTHINDEX 3
 
 //雷达协议类型
 typedef enum {
@@ -241,7 +242,7 @@ struct tri_node_package {
   uint16_t  firstAngle;///< first sample angle
   uint16_t  lastAngle;///< last sample angle
   uint16_t  cs;///< checksum
-  uint16_t  nodes[TRI_PACKMAXNODES];
+  uint16_t  nodes[PackageSampleMaxLngth];
 } __attribute__((packed));
 
 //LiDAR Intensity Nodes Package
@@ -252,7 +253,7 @@ struct tri_node_package2 {
   uint16_t  firstAngle;///< first sample angle
   uint16_t  lastAngle;///< last sample angle
   uint16_t  cs;///< checksum
-  tri_node2  nodes[TRI_PACKMAXNODES];
+  tri_node2  nodes[PackageSampleMaxLngth];
 } __attribute__((packed));
 
 // TOF LiDAR Intensity Nodes Package
@@ -263,7 +264,7 @@ struct tof_node_package {
   uint16_t  firstAngle;
   uint16_t  lastAngle;
   uint16_t  cs;
-  tof_node  nodes[TRI_PACKMAXNODES];
+  tof_node  nodes[PackageSampleMaxLngth];
 } __attribute__((packed));
 
 //时间戳结构体
@@ -358,12 +359,7 @@ struct gs_packages {
     int moduleNum;
     bool left = false;
     bool right = false;
-    node_info points[GS_PACKMAXNODES];
-} __attribute__((packed));
-struct gs_module_nodes {
-  int moduleNum = 0;
-  int pointCount = 0;
-  node_info points[GS_PACKMAXNODES];
+    node_info points[GS_MAXPOINTS];
 } __attribute__((packed));
 
 //GS点数据结构
@@ -381,7 +377,7 @@ struct gs_node_package {
   uint8_t ct;
   uint16_t size;
   uint16_t env;
-  gs_node nodes[GS_PACKMAXNODES];
+  gs_node nodes[GS_MAXPOINTS];
   uint8_t cs;
 } __attribute__((packed));
 #define GSPACKSIZE sizeof(gs_node_package) //定义GS点大小
@@ -405,7 +401,6 @@ struct gs_package_head {
     uint8_t type;
     uint16_t size;
 } __attribute__((packed));
-#define GSPACKEGEHEADSIZE sizeof(gs_package_head)
 //GS系列设备信息
 struct gs_device_info {
     uint8_t hwVersion; //硬件版本号

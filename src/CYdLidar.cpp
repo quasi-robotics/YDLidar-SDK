@@ -744,15 +744,15 @@ bool CYdLidar::doProcessSimple(LaserScan &outscan)
       }
 
       //过滤点
-      if (!isRangeValid(range) ||
+      if (range < m_MinRange ||
         (m_SunNoise && node.is == SUNNOISEINTENSITY) ||
         (m_GlassNoise && node.is == GLASSNOISEINTENSITY))
-      {
         range = .0;
-      }
+      else if(range > m_MaxRange)
+        range = std::numeric_limits<float>::infinity();
 
-      // printf("i %d d %.03f a %.02f flag %u\n",
-      //   i, range, angle*180.0/M_PI, node.sync);
+      // printf("i %d d %.03f a %.02f i %.02f flag %u\n",
+      //   i, range, angle*180.0/M_PI, intensity, node.sync);
 
       if (angle >= outscan.config.min_angle &&
           angle <= outscan.config.max_angle)

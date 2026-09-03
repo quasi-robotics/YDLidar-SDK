@@ -751,8 +751,8 @@ bool CYdLidar::doProcessSimple(LaserScan &outscan)
       else if(range > m_MaxRange)
         range = std::numeric_limits<float>::infinity();
 
-      // printf("i %d d %.03f a %.02f i %.02f flag %u\n",
-      //   i, range, angle*180.0/M_PI, intensity, node.sync);
+      // printf("i %d d %.03f a %.02f i %.02f sync %u is: %x, error %u\n",
+      //   i, range, angle*180.0/M_PI, intensity, (int)node.sync, (int)node.is, (int)node.error);
 
       if (angle >= outscan.config.min_angle &&
           angle <= outscan.config.max_angle)

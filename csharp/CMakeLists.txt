@@ -28,10 +28,6 @@ set_property(SOURCE ydlidar_sdk.i PROPERTY SWIG_FLAGS "-module" "ydlidar")
 SET_SOURCE_FILES_PROPERTIES(ydlidar_sdk.i PROPERTIES CPLUSPLUS ON)
 ###############################################################################
 # This is a CMake YDLIDAR SDK for Python
-if (${CMAKE_VERSION} VERSION_LESS "3.8.0")
-    swig_add_module(${MODULE_NAME} csharp ydlidar_sdk.i)
-else()
-    swig_add_library(${MODULE_NAME} LANGUAGE csharp SOURCES ydlidar_sdk.i)
-endif()
-SWIG_LINK_LIBRARIES(${MODULE_NAME} ydlidar_sdk)
+swig_add_library(${MODULE_NAME} LANGUAGE csharp SOURCES ydlidar_sdk.i)
+target_link_libraries(${SWIG_MODULE_${MODULE_NAME}_REAL_NAME} ydlidar_sdk)
 #set_target_properties(${MODULE_NAME} PROPERTIES OUTPUT_NAME "ydlidar")

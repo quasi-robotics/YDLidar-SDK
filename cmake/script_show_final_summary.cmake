@@ -89,6 +89,6 @@ ENDIF($ENV{VERBOSE})
 MESSAGE(STATUS " _______________________ WRAPPERS/BINDINGS ______________________")
 SHOW_CONFIG_LINE("Python bindings (pyydlidar)  " SWIG_FOUND)
 SHOW_CONFIG_LINE(" - dep: Swig found?      " SWIG_FOUND "[Version: ${SWIG_VERSION}]")
-SHOW_CONFIG_LINE(" - dep: PythonLibs found? " PYTHONLIBS_FOUND "[Version: ${PYTHON_VERSION_STRING}]")
+SHOW_CONFIG_LINE(" - dep: Python3 found?    " Python3_FOUND "[Version: ${Python3_VERSION}]")
 
 MESSAGE(STATUS "")

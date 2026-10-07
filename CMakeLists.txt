@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.18...3.31)
 project(ydlidar_sdk C CXX)
 
 #########################################################
@@ -42,22 +42,6 @@ include(common/ydlidar_base)
 include(install_package)
 
 #############################################################################
-# Policy CMP0023 allows to mix old and new interfaces of target_link_libraries
-if(COMMAND cmake_policy)
-	cmake_policy(SET CMP0003 NEW) # We don't want to mix relative and absolute paths in linker lib lists.
-	cmake_policy(SET CMP0005 NEW) # Escape definitions (-D) strings
-	if(POLICY CMP0053)
-		cmake_policy(SET CMP0053 OLD) # Simplify variable reference and escape sequence evaluation.
-	endif()
-	if(POLICY CMP0037)
-		cmake_policy(SET CMP0037 OLD)  # Allow defining target "test"
-	endif()
-	if(POLICY CMP0043)
-		cmake_policy(SET CMP0043 OLD) #  Ignore COMPILE_DEFINITIONS_<Config> properties.
-	endif()
-endif()
-
-#############################################################################
 # option
 option( BUILD_SHARED_LIBS "Build shared libraries." OFF)
 option( BUILD_EXAMPLES "Build Example." ON)
@@ -67,8 +51,7 @@ option( BUILD_TEST "Build Test." ON)
 ############################################################################
 # find package
 FIND_PACKAGE(SWIG)
-find_package(PythonInterp)
-FIND_PACKAGE(PythonLibs)
+find_package(Python3 COMPONENTS Interpreter Development.Module)
 find_package(GTest)
 
 ############################################################################
@@ -132,7 +115,7 @@ enable_testing()
 
 ############################################################################
 # build ydlidar sdk python version
-if(${SWIG_FOUND} AND ${PYTHONLIBS_FOUND})
+if(SWIG_FOUND AND Python3_FOUND)
     message(STATUS "build python API....")
     include_directories(python)
     add_subdirectory(python)

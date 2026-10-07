@@ -97,11 +97,6 @@ function(install_package)
   if( NOT EXPORT_${PROJECT_NAME} )
         # add "installed" library to list of required libraries to link against
         if( PACKAGE_LIB_NAME )
-            if(POLICY CMP0026)
-              cmake_policy( SET CMP0026 OLD )
-            endif()
-            get_target_property( _target_library ${PACKAGE_LIB_NAME} LOCATION )
-            get_filename_component( _lib ${_target_library} NAME )
             list( INSERT PACKAGE_LINK_LIBS 0 ${PACKAGE_LIB_NAME} )
         endif()
 
@@ -148,7 +143,10 @@ function(install_package)
 
         # install library itself
         if( PACKAGE_LIB_NAME )
-            install( FILES ${_target_library} DESTINATION ${CMAKE_INSTALL_PREFIX}/lib )
+            install( TARGETS ${PACKAGE_LIB_NAME}
+                ARCHIVE DESTINATION lib
+                LIBRARY DESTINATION lib
+                RUNTIME DESTINATION bin )
             set( PACKAGE_LIB_LINK "-l${PACKAGE_LIB_NAME}" )
         endif()
     
@@ -160,13 +158,6 @@ function(install_package)
             install( FILES ${CMAKE_CURRENT_BINARY_DIR}/${PACKAGE_PKG_NAME}.pc 
                 DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/pkgconfig/ )
         
-        #######################################################
-        # Export library for easy inclusion from other cmake projects. APPEND allows
-        # call to function even as subdirectory of larger project.
-        FILE(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake")
-        export( TARGETS ${LIBRARY_NAME}
-        APPEND FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake" )
-
         if("${SDK_SOURCE_DIR}" STREQUAL "")
             # Version information.  So find_package( XXX version ) will work.
             configure_file( ${CMAKE_SOURCE_DIR}/cmake/PackageConfigVersion.cmake.in
@@ -190,7 +181,6 @@ function(install_package)
 
         install(FILES
             ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config.cmake
-            ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake
             ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}ConfigVersion.cmake
             DESTINATION
             lib/cmake/${PROJECT_NAME})
@@ -211,10 +201,19 @@ function(install_package)
   elseif( EXPORT_${PROJECT_NAME} )
 
       if( PACKAGE_LIB_NAME )
-            if(POLICY CMP0026)
-              cmake_policy( SET CMP0026 OLD )
+            # Reading the LOCATION property is no longer allowed (CMP0026), so
+            # build the path to the library in the build tree by hand.
+            get_target_property( _lib_type ${PACKAGE_LIB_NAME} TYPE )
+            if( _lib_type STREQUAL "SHARED_LIBRARY" )
+                set( _lib_file ${CMAKE_SHARED_LIBRARY_PREFIX}${PACKAGE_LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX} )
+            else()
+                set( _lib_file ${CMAKE_STATIC_LIBRARY_PREFIX}${PACKAGE_LIB_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX} )
             endif()
-            get_target_property( _target_library ${PACKAGE_LIB_NAME} LOCATION )
+            if( LIBRARY_OUTPUT_PATH )
+                set( _target_library ${LIBRARY_OUTPUT_PATH}/${_lib_file} )
+            else()
+                set( _target_library ${CMAKE_CURRENT_BINARY_DIR}/${_lib_file} )
+            endif()
             list( INSERT PACKAGE_LINK_LIBS 0 ${_target_library} )
         endif()
 
@@ -248,7 +247,7 @@ function(install_package)
   # Export library for easy inclusion from other cmake projects. APPEND allows
   # call to function even as subdirectory of larger project.
   FILE(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake")
-  export( TARGETS ${LIBRARY_NAME}
+  export( TARGETS ${PACKAGE_LIB_NAME}
       APPEND FILE "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Targets.cmake" )
 
   export( PACKAGE ${PROJECT_NAME} )
